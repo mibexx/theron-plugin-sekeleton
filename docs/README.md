@@ -10,8 +10,9 @@ The complete reference of Theron's plugin interface – **plugin API v1** (`ther
 | [The context `ctx`](context.md) | The complete API reference – every attribute and method |
 | [Process nodes](nodes.md) | `ctx.nodes.register`, the `node` object, results, fields, outputs, the AI designer |
 | [Pages & settings UI](ui.md) | Navigation pages, settings pages, threads, Theron's styles |
-| [Events](events.md) | Every event with its payload, sources, delivery rules |
-| [Task lists & runs](data.md) | Data shapes of projects, task lists, epics, requirements and runs |
+| [Hooks](hooks.md) | Stepping into Theron's flow: every hook, its context and what can be changed; plugin order |
+| [Events](events.md) | Every event with its payload, sources, delivery rules; a plugin's own events |
+| [Data shapes](data.md) | Projects, task lists, epics, requirements, processes (and the draft format), agents, runs |
 | [Tools for agents](tools.md) | `ctx.tools.register`, parameter schemas, naming |
 | [Integrations & sync](integrations.md) | The sync engine of this skeleton, adapters, HTTP, storage, schedules |
 | [Packaging, signing & installing](packaging.md) | The `.theronplugin` format, `.theronignore`, signatures, all ways to install |

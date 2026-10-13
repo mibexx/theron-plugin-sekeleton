@@ -11,8 +11,11 @@ attribute and method of plugin API v1.
 - [`ctx.tools`](#ctxtools)
 - [`ctx.ui`](#ctxui)
 - [`ctx.events`](#ctxevents)
+- [`ctx.hooks`](#ctxhooks)
 - [Background work: `schedule`, `on_start`, `on_stop`, `spawn`](#background-work)
 - [`ctx.tasklists`](#ctxtasklists)
+- [`ctx.processes`](#ctxprocesses)
+- [`ctx.agents`](#ctxagents)
 - [`ctx.runs`](#ctxruns)
 - [`ctx.ai`](#ctxai)
 - [`ctx.http`](#ctxhttp)
@@ -162,6 +165,24 @@ ctx.events.on("requirement.saved", on_requirement)
 
 Events are delivered only while Theron runs as the app or a slave (after `app.started`).
 
+### `ctx.events.emit(name, payload=None)`
+
+Sends an event of the plugin's own – `name` must start with `"<plugin id>."` (e.g. `"whatsapp.sent"`). Other plugins
+subscribe with `ctx.events.on("whatsapp.sent", fn)` and get `payload` plus `"name"` and `"source": "plugin:<id>"`.
+Raises `PluginError` for other names.
+
+---
+
+## `ctx.hooks`
+
+Points where Theron waits for the plugins and takes over what they change. Full guide with every built-in hook, its
+context and changeable data: [Hooks](hooks.md).
+
+| Method | Returns | Description |
+|---|---|---|
+| `ctx.hooks.on(name, fn=None, *, timeout=None)` | `fn` / decorator | handle a hook with `fn(hook)` – change `hook.data` in place or return a new `dict`. `timeout`: seconds Theron waits for this handler (default 60). Raises `PluginError` for unknown names. |
+| `await ctx.hooks.call(name, data, context=None)` | `dict` | offer a hook of the plugin's own (`name` starts with `"<plugin id>."`) to all plugins and get the data back as they left it |
+
 ---
 
 ## Background work
@@ -215,6 +236,33 @@ Theron's TASKS page at once and fire events for everyone except this plugin.
 
 ---
 
+## `ctx.processes`
+
+Theron's processes – read, create, change, delete. Changes appear in the app at once (PROCESSES page) and are synced
+with the Theron server like the user's own changes. Temporary processes (the THERON assistant's) are left out.
+
+| Method | Returns | Description |
+|---|---|---|
+| `list()` | `list[dict]` | `{"id", "name", "description", "goal", "folder", "steps"}` (`steps` = number of steps) |
+| `get(process_id)` | `dict \| None` | the complete [process document](data.md#process) (normalized: every step with all fields) |
+| `find(name)` | `dict \| None` | by name (case-insensitive) |
+| `create(data)` | `int` | a new process from a document (needs `name`; `steps`, `start` … as in the [process format](data.md#process)) |
+| `create_from_draft(draft)` | `(int, list[str])` | a new process from the AI designer's [draft format](data.md#process-draft) (step keys, agent names) – missing agents are created; returns the id and the names of the created agents. Raises `PluginError` if the draft isn't a complete process. |
+| `to_draft(process_id)` | `dict \| None` | the process in draft format – easier to read and change |
+| `update(process_id, **fields)` | `dict` | change fields (`name`, `description`, `goal`, `steps`, `start`, `folder`, `inputs` …); returns the new document |
+| `delete(process_id)` | `None` | delete; `PluginError` while a project uses it |
+| `problems(data)` | `list[str]` | why a process document isn't a complete graph (`[]` = fine) |
+
+## `ctx.agents`
+
+| Method | Returns | Description |
+|---|---|---|
+| `list()` | `list[dict]` | `{"id", "name", "task", "backend", "model", "folder"}` |
+| `get(agent_id)` / `find(name)` | `dict \| None` | the complete [agent document](data.md#agent) |
+| `create(name, task, rules="", **fields)` | `int` | a new agent; `fields`: any of `backend`, `model`, `permission_mode`, `load_user_settings`, `max_turns`, `color`, `knowledge`, `folder`, `memory`, `memory_dir`, `memory_ttl_days`. `PluginError` if the name is taken. |
+| `update(agent_id, **fields)` | `dict` | change the fields above, `name`, `task`, `rules` |
+| `delete(agent_id)` | `None` | delete; `PluginError` while a process uses it |
+
 ## `ctx.runs`
 
 Tasks (“runs”) – what Theron works on with a project's process.
@@ -239,6 +287,41 @@ One answer of the AI model, without tools. Uses Theron's core model: Claude via 
 slave the slave's login is used. Raises on errors (no login, network) – catch them.
 
 Each call counts against the user's Claude usage – prefer `"haiku"` and short prompts.
+
+### `ctx.ai.session(system="", model="sonnet") -> session`
+
+A conversation over several turns. The history goes along with every turn.
+
+```python
+chat = ctx.ai.session(system="You are a release manager.")
+plan = await chat.send("What do we need for a release of the shop?")
+risks = await chat.send("And what could go wrong?")       # knows the first answer
+```
+
+| Member | Description |
+|---|---|
+| `await session.send(text) -> str` | the next turn |
+| `session.history` | `[(role, text)]` – `"user"` / `"assistant"` |
+| `session.reset()` | forget the conversation |
+
+### `await ctx.ai.agent(prompt, *, cwd=None, system="", model="", tools=None, max_turns=30, session_id="", on_text=None) -> AgentResult`
+
+Runs a **Claude Code agent of the plugin's own** – with tools, in a folder, on the user's Claude subscription. For work
+that needs more than an answer: read files, search the web, write a report.
+
+| Parameter | Meaning |
+|---|---|
+| `prompt` | the task |
+| `cwd` | the folder it works in (default: `ctx.data_dir`) |
+| `system` | added to Claude Code's system prompt |
+| `model` | `"opus"`, `"sonnet"`, `"haiku"` or empty (Claude Code's default) |
+| `tools` | the tools it may use – default **read-only**: `Read`, `Glob`, `Grep`, `WebSearch`, `WebFetch`. Add `Write`, `Edit`, `Bash` … deliberately – they act without asking. |
+| `max_turns` | limit of model turns |
+| `session_id` | continue an earlier agent conversation (`AgentResult.session_id`) |
+| `on_text(text)` | callback with what the agent writes while it works |
+
+`AgentResult`: `text` (its final answer), `session_id`, `cost_usd`, `is_error`. The user's CLAUDE.md and settings are
+not loaded. The cost counts towards Theron's usage display.
 
 ---
 

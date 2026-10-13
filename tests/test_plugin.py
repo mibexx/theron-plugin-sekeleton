@@ -6,7 +6,9 @@ def test_registers_nodes_tools_jobs_and_events(ctx):
     assert set(ctx.nodes.items) == {"summarize", "check", "trello-import"}
     assert set(ctx.tools.items) == {"list_tasklists", "add_requirement"}
     assert ctx.jobs and ctx.jobs[0]["every"] == 5 * 60
-    assert {name for name, _ in ctx.events.listeners} == {"run.finished", "requirement.saved", "settings.changed"}
+    assert {name for name, _ in ctx.events.listeners} == {"run.finished", "requirement.saved", "settings.changed",
+                                                         "node.transition"}
+    assert {name for name, _, _ in ctx.hooks.handlers} == {"process.design.before", "agent.design.before", "hitl.question"}
 
 
 def test_summarize_and_check_nodes(ctx):

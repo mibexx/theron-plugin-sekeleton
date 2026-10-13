@@ -5,7 +5,7 @@ the plugin API (https://theron.mibexx.de/docs-plugins.html#en-pl-api). Delete wh
 below is independent of the others.
 """
 
-from . import events, nodes, tools
+from . import events, hooks, nodes, tools
 from .integrations.sync import TaskListSync
 from .integrations.trello import TrelloAdapter
 
@@ -22,8 +22,9 @@ def register(ctx):
     # 3. A tool every Claude agent can use while it works (tools.py)
     tools.register(ctx)
 
-    # 4. Reacting to what happens in Theron (events.py)
+    # 4. Reacting to what happens in Theron (events.py) – and stepping into it (hooks.py)
     events.register(ctx, sync)
+    hooks.register(ctx)
 
     # 5. UI: a navigation entry and extra settings – desktop app only (pages.py, settings_page.py)
     if ctx.ui.available:   # PySide6 exists only there (not on a slave / in the headless Docker image)

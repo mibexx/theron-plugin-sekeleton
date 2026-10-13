@@ -28,6 +28,29 @@ ctx.events.on("*", log_everything)          # every event
 | `app.stopping` | `{"name"}` | Theron quits, before the `on_stop` callbacks |
 | `settings.changed` | `{"name", "keys": [changed keys]}` | the user saved the plugin's settings, or the plugin called `ctx.settings.update()`. Only delivered to the plugin the settings belong to. |
 
+## Process flow
+
+| Event | Payload | When |
+|---|---|---|
+| `node.transition` | `{"name", "run_id", "from", "to", "verdict", "handovers", "context"}` | a process moves on from one node to the next – after an agent, a decision, a loop … (once per target, e.g. for every path of an AND split) |
+| `agent.started` | `{"name", "run_id", "prompt", "handovers", "context"}` | an agent starts a turn (after `agent.before_start`) |
+| `agent.finished` | `{"name", "run_id", "prompt", "result", "verdict", "error", "cost_usd", "context"}` | an agent finished a turn (after `agent.after_end`) |
+| `hitl.asked` | `{"name", "run_id", "request_id", "question", "options", "recommended", "details", "context"}` | Theron asks the user something |
+| `hitl.answered` | `{"name", "run_id", "request_id", "answer", "source", "context"}` | a question was answered – `source`: `"app"`, `"web:<user>"`, `"api"`, `"plugin:<id>"` … |
+| `tasklist.created` | `{"name", "run_id", "mode", "tasklist", "tasklist_id", "context"}` | a ☰ task-list node created a temporary list (`mode` `"new"` / `"copy"`) or filled a real one (`"fill"`) |
+
+`from` / `to` describe a node: `{"id", "name", "type", "index", "agent"}` – `type` is `agent`, `parallel`, `switch`,
+`hitl`, `fork`, `join`, `foreach`, `subprocess`, `message`, `tasklist`, `memory`, `database` or `plugin` (then also
+`plugin_node`); `agent` is the agent's name (or the members of a parallel group), `index` the step's number. A path to
+the goal ends in `{"id": "end", "name": "end", …}`. `context` is the same as for [hooks](hooks.md): `run`, `project`,
+`process`, `requirement`, and where it fits `step` and `agent`.
+
+```python
+@ctx.events.on("node.transition")
+async def tell(e):
+    await send_whatsapp(f"{e['context']['run']['title']}: {e['from']['name']} → {e['to']['name']}")
+```
+
 ## Data changes
 
 `<kind>.saved` and `<kind>.deleted` for `project`, `process`, `agent`, `tasklist`, `epic`, `requirement` – whoever made
@@ -94,6 +117,12 @@ Run statuses: `idle`, `running`, `waiting_input`, `done`, `failed`, `stopped`. `
 | `requirement_start` / `requirement_done` / `requirement_status` | `title`, `requirement_id`, … |
 | `complete` | `summary`, `goal_reached` |
 | `error` | `text` |
+
+## A plugin's own events
+
+`ctx.events.emit("<plugin id>.<name>", payload)` sends an event other plugins receive with
+`ctx.events.on("<plugin id>.<name>", fn)` – with `"name"` and `"source": "plugin:<id>"` added. Names of built-in prefixes
+(`app`, `run`, `agent`, `hitl`, `node` …) are reserved for Theron.
 
 `run.event` is busy (dozens of events per minute while agents work) – subscribe to `run.status` / `run.finished` when
 they're enough.

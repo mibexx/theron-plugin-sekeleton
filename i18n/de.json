@@ -27,5 +27,12 @@
   "Task list to sync": "Task-Liste zum Synchronisieren",
   "Sync every (minutes)": "Synchronisieren alle (Minuten)",
   "Sync direction": "Richtung",
-  "Notify me when a task finishes": "Benachrichtigen, wenn ein Task fertig ist"
+  "Notify me when a task finishes": "Benachrichtigen, wenn ein Task fertig ist",
+  "Base prompt for AI designs": "Basis-Prompt für KI-Entwürfe",
+  "Added to every process and agent the AI designs, e.g. your house rules.": "Wird jedem Prozess und Agent mitgegeben, den die KI entwirft – z. B. deine Hausregeln.",
+  "Let Claude answer questions it is sure about": "Claude Rückfragen beantworten lassen, wenn es sicher ist",
+  "WhatsApp: send node changes to (+49…)": "WhatsApp: Node-Wechsel senden an (+49…)",
+  "WhatsApp: sender number (Twilio)": "WhatsApp: Absendernummer (Twilio)",
+  "Twilio account SID": "Twilio Account-SID",
+  "Twilio auth token": "Twilio Auth-Token"
 }

@@ -11,7 +11,7 @@
 Either clone this skeleton:
 
 ```bash
-git clone https://github.com/mibexx/theron-plugin my-plugin
+git clone https://github.com/mibexx/theron-plugin-sekeleton my-plugin
 cd my-plugin
 ```
 

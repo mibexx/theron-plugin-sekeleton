@@ -26,6 +26,8 @@ new release.
   - [Integrations: syncing task lists](#integrations-syncing-task-lists)
   - [Tools for agents](#tools-for-agents)
   - [Events and schedules](#events-and-schedules)
+  - [Hooks: changing what Theron does](#hooks-changing-what-theron-does)
+  - [Processes, agents and Claude](#processes-agents-and-claude)
 - [The plugin API at a glance](#the-plugin-api-at-a-glance) – full reference in [docs/](docs/README.md)
 - [Test without Theron](#test-without-theron)
 - [Pack, sign and install](#pack-sign-and-install)
@@ -44,7 +46,11 @@ new release.
 | **Process nodes** | New nodes in the process editor – with fields, ✔ / ✖ outputs, used by Theron's AI process designer. | [`my_plugin/nodes.py`](my_plugin/nodes.py) |
 | **Integrations** | Talk to other services: read and change task lists, react to events, run on a schedule, HTTP. | [`my_plugin/integrations/`](my_plugin/integrations) |
 | **Tools for agents** | Extra tools every Claude agent can call while it works. | [`my_plugin/tools.py`](my_plugin/tools.py) |
-| **Events** | React to finished tasks, changed requirements, settings … | [`my_plugin/events.py`](my_plugin/events.py) |
+| **Events** | React to finished tasks, node changes, questions, changed requirements … | [`my_plugin/events.py`](my_plugin/events.py) |
+| **Hooks** | Step into Theron's flow and change the outcome: agent prompts and results, questions to the user (or answer them), AI designs, task lists, the THERON assistant's team – in a plugin order the user sets. | [`my_plugin/hooks.py`](my_plugin/hooks.py) |
+| **Processes & agents** | Read, create, change and delete Theron's processes and agents. | [docs/context.md](docs/context.md#ctxprocesses) |
+| **Talk to Claude** | One-shot answers, conversations and Claude Code agents of the plugin's own – on the user's subscription. | [docs/context.md](docs/context.md#ctxai) |
+| **Own hooks & events** | Offer hooks and events other plugins can use. | [docs/hooks.md](docs/hooks.md#a-plugins-own-hooks) |
 
 Plugins run in the Theron desktop app, on a Theron slave (`theron --listen`), in the headless Docker worker and in
 console runs (`theron execute`). Pages and settings UI exist only in the desktop app; nodes, tools, events and
@@ -55,7 +61,7 @@ schedules work everywhere a process runs.
 You need **Theron 0.14.0 or newer** and Python 3.11+ for development.
 
 ```bash
-git clone https://github.com/mibexx/theron-plugin my-plugin
+git clone https://github.com/mibexx/theron-plugin-sekeleton my-plugin
 cd my-plugin
 pip install pytest            # tests run without Theron (devkit/)
 python -m pytest              # all green? then:
@@ -83,6 +89,7 @@ my-plugin/
 │   ├── settings_page.py       extra settings UI (desktop only)
 │   ├── tools.py               tools for agents
 │   ├── events.py              event handlers
+│   ├── hooks.py               hooks: WhatsApp on node changes, base prompt for AI designs, AI answers questions
 │   └── integrations/
 │       ├── adapter.py         Adapter interface + RemoteItem
 │       ├── sync.py            TaskListSync – generic two-way sync
@@ -102,7 +109,8 @@ my-plugin/
 1. **Rename** – in `plugin.toml` set `id` (lower case, digits, `-`), `name`, `author`, `homepage`; rename the folder
    `my_plugin/` and set `entry` to the new folder name.
 2. **Delete what you don't need** – every part in `register()` is independent. A plugin may be as small as one node.
-3. **Permissions** – list what your plugin uses (`network`, `tasklists`, `runs`, `agent-tools`, `ui`, `files`, `ai`).
+3. **Permissions** – list what your plugin uses (`network`, `tasklists`, `processes`, `agents`, `runs`, `agent-tools`,
+   `hooks`, `ui`, `files`, `ai`).
    Theron shows them before installing.
 4. **Version** – raise `version` for every release; installing a higher version replaces the old one, settings and
    data stay.
@@ -271,6 +279,49 @@ Events: `app.started`, `app.stopping`, `settings.changed`, `run.event`, `run.sta
 `<kind>.saved` / `<kind>.deleted` for `project`, `process`, `agent`, `tasklist`, `epic`, `requirement`.
 Schedules, `on_start` and events run in the app and on a slave – not in a single `theron execute` run.
 
+### Hooks: changing what Theron does
+
+Events tell you what happened; **hooks** let you change it. Theron waits for the handlers – one plugin after the
+other, in the order the user set (Settings → Plugins ▲ ▼) – and continues with what they left in `hook.data`.
+`hook.context` says what it's about (run, project, process, step, agent, hand-overs …).
+
+```python
+@ctx.hooks.on("process.design.before")                 # a base prompt for everything the AI designs
+def house_rules(hook):
+    hook.data["system_prompt"] += "\n\nHOUSE RULES:\n" + ctx.settings["design_base_prompt"]
+
+@ctx.hooks.on("hitl.question", timeout=180)            # let Claude answer when it is sure
+async def answer(hook):
+    reply = await ctx.ai.ask(f"{hook.data['question']}\nOptions: {hook.data['options']}\nReply with one option or UNSURE.")
+    if reply.strip() in hook.data["options"]:
+        hook.data["answer"] = reply.strip()
+
+@ctx.events.on("node.transition")                      # an event: tell someone, change nothing
+async def whatsapp(event):
+    await send(f"{event['from']['name']} → {event['to']['name']}")
+```
+
+Built-in hooks: `agent.before_start`, `agent.after_end`, `hitl.question`, `message.user`, `orchestrator.prompt`,
+`process.design.before` / `.after`, `agent.design.before` / `.after`, `tasklist.before_create`,
+`assistant.process.before_create` / `.created`. Each with its context and changeable data: [docs/hooks.md](docs/hooks.md).
+
+Plugins can offer **their own** hooks and events (`await ctx.hooks.call("my-plugin.before_send", data)`,
+`ctx.events.emit("my-plugin.sent", payload)`) for other plugins to use.
+
+### Processes, agents and Claude
+
+```python
+aid = ctx.agents.create("Release manager", "Plans and checks releases.", model="sonnet")
+pid, created = ctx.processes.create_from_draft({"name": "Release", "start": "s1", "steps": [
+    {"key": "s1", "agent": "Release manager", "on_success": "end"}]})
+
+chat = ctx.ai.session(system="You are brief.")         # a conversation
+await chat.send("What's missing for the release?")
+
+report = await ctx.ai.agent("Summarize the open issues in this repository.",   # a Claude Code agent with tools
+                            cwd=project_folder, tools=["Read", "Glob", "Grep"])
+```
+
 ## The plugin API at a glance
 
 Everything a plugin does goes through `ctx` – the only interface to Theron, stable within an API version
@@ -284,11 +335,14 @@ Everything a plugin does goes through `ctx` – the only interface to Theron, st
 | `nodes.register(…)` | a process node |
 | `tools.register(…)` | a tool for Claude agents |
 | `ui` | `available`, `add_page`, `settings_page`, `call(fn)` (UI thread), `open_url` |
-| `events.on(name, fn)` | react to events (decorator or call) |
+| `events.on(name, fn)`, `events.emit(name, payload)` | react to events (decorator or call); send the plugin's own |
+| `hooks.on(name, fn, timeout=)`, `await hooks.call(name, data)` | step into Theron's flow; offer the plugin's own hooks |
+| `processes` | `list`, `get`, `find`, `create`, `create_from_draft`, `to_draft`, `update`, `delete`, `problems` |
+| `agents` | `list`, `get`, `find`, `create`, `update`, `delete` |
 | `schedule(seconds, fn, first=)`, `on_start`, `on_stop`, `spawn(fn)` | background work |
 | `tasklists` | `projects`, `list`, `get`, `find`, `create`, `update`, `delete`, `add_epic`, `update_epic`, `delete_epic`, `add_requirement`, `update_requirement`, `delete_requirement`, `epic`, `requirement` |
 | `runs` | `start(project_id, text, title=)`, `get`, `list`, `message` |
-| `ai.ask(prompt, system=, model="haiku")` | one answer of the AI model – the user's Claude subscription or Theron's local core model |
+| `ai.ask(prompt, system=, model="haiku")`, `ai.session(system=, model=)`, `ai.agent(prompt, cwd=, tools=, …)` | talk to Claude: one answer, a conversation, a Claude Code agent with tools – the user's subscription |
 | `http` | async `get`, `post`, `put`, `patch`, `delete` → `.status`, `.json()`, `.text`, `.raise_for_status()` |
 | `log(text)`, `log.error`, `log.exception`, `notify(text, level)` | log (Settings → Plugins → Log) and toasts |
 | `tr(text, **values)` | translation from `i18n/<language>.json` |

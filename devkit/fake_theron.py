@@ -198,12 +198,47 @@ class _Events:
     def __init__(self, ctx):
         self._ctx = ctx
         self.listeners: list[tuple[str, Callable]] = []
+        self.emitted: list[dict] = []
 
     def on(self, name, fn=None, *, include_own=False):
         def add(f):
             self.listeners.append((name, f))
             return f
         return add(fn) if fn is not None else add
+
+    def emit(self, name, payload=None):
+        if not name.startswith(self._ctx.id + "."):
+            raise PluginError(f"a plugin's own events start with '{self._ctx.id}.'")
+        self.emitted.append({**(payload or {}), "name": name, "source": self._ctx.source})
+
+
+class FakeHook:
+    def __init__(self, name, context, data, source="theron"):
+        self.name, self.context, self.data, self.source = name, context, data, source
+        self.handled_by: list[str] = []
+        self.stopped = False
+
+    def stop(self):
+        self.stopped = True
+
+
+class _Hooks:
+    """Like Theron's ctx.hooks; ``await ctx.run_hook(name, data, context)`` runs the handlers as Theron would."""
+
+    def __init__(self, ctx):
+        self._ctx = ctx
+        self.handlers: list[tuple[str, Callable, float | None]] = []
+
+    def on(self, name, fn=None, *, timeout=None):
+        def add(f):
+            self.handlers.append((name, f, timeout))
+            return f
+        return add(fn) if fn is not None else add
+
+    async def call(self, name, data, context=None):
+        if not name.startswith(self._ctx.id + "."):
+            raise PluginError(f"a plugin's own hooks start with '{self._ctx.id}.'")
+        return await self._ctx.run_hook(name, data, context, source=self._ctx.source)
 
 
 class _Ui:
@@ -320,6 +355,70 @@ class _Tasklists:
         await self._ctx.emit("requirement.saved", {"id": requirement_id, "data": dict(self.reqs[requirement_id])})
 
 
+class _Library:
+    """In-memory processes / agents with the methods of ctx.processes / ctx.agents."""
+
+    def __init__(self, kind):
+        self.kind = kind
+        self.items: dict[int, dict] = {}
+        self._next = 100
+
+    def list(self):
+        return [{"id": d["id"], "name": d["name"]} for d in self.items.values()]
+
+    def get(self, entity_id):
+        return json.loads(json.dumps(self.items[entity_id])) if entity_id in self.items else None
+
+    def find(self, name):
+        return next((self.get(i) for i, d in self.items.items() if d["name"].lower() == name.strip().lower()), None)
+
+    def _add(self, doc):
+        if not str(doc.get("name") or "").strip():
+            raise PluginError(f"a {self.kind} needs a name")
+        self._next += 1
+        self.items[self._next] = {**json.loads(json.dumps(doc)), "id": self._next}
+        return self._next
+
+    def update(self, entity_id, **fields):
+        if entity_id not in self.items:
+            raise PluginError(f"{self.kind} {entity_id} doesn't exist")
+        self.items[entity_id].update({k: v for k, v in fields.items() if k != "id"})
+        return self.get(entity_id)
+
+    def delete(self, entity_id):
+        if entity_id not in self.items:
+            raise PluginError(f"{self.kind} {entity_id} doesn't exist")
+        del self.items[entity_id]
+
+
+class _Processes(_Library):
+    def __init__(self):
+        super().__init__("process")
+
+    def create(self, data):
+        return self._add({"steps": [], **data})
+
+    def create_from_draft(self, draft):
+        return self._add({"name": draft.get("name", "Draft"), "draft": draft, "steps": draft.get("steps", [])}), []
+
+    def to_draft(self, entity_id):
+        d = self.get(entity_id)
+        return d.get("draft") if d else None
+
+    def problems(self, data):
+        return []
+
+
+class _Agents(_Library):
+    def __init__(self):
+        super().__init__("agent")
+
+    def create(self, name, task, rules="", **fields):
+        if self.find(name):
+            raise PluginError(f"an agent named '{name}' exists already")
+        return self._add({"name": name, "task": task, "rules": rules, **fields})
+
+
 class _Runs:
     def __init__(self):
         self.started: list[dict] = []
@@ -338,14 +437,47 @@ class _Runs:
         pass
 
 
+@dataclass
+class AgentResult:
+    text: str = ""
+    session_id: str = "fake-session"
+    cost_usd: float = 0.0
+    is_error: bool = False
+
+
+class _Session:
+    def __init__(self, ai, system, model):
+        self._ai, self.system, self.model = ai, system, model
+        self.history: list[tuple[str, str]] = []
+
+    async def send(self, text):
+        answer = await self._ai.ask(text, self.system, self.model)
+        self.history += [("user", text), ("assistant", answer)]
+        return answer
+
+    def reset(self):
+        self.history = []
+
+
 class _Ai:
     def __init__(self):
         self.answer: Callable[[str, str, str], str] = lambda prompt, system, model: "YES – fake answer"
+        self.agent_answer: Callable[[str, dict], str] = lambda prompt, options: "agent done"
         self.prompts: list[str] = []
+        self.agents: list[dict] = []
 
     async def ask(self, prompt, system="", model="haiku"):
         self.prompts.append(prompt)
         return self.answer(prompt, system, model)
+
+    def session(self, system="", model="sonnet"):
+        return _Session(self, system, model)
+
+    async def agent(self, prompt, *, cwd=None, system="", model="", tools=None, max_turns=30, session_id="",
+                    on_text=None):
+        options = {"cwd": cwd, "system": system, "model": model, "tools": tools, "session_id": session_id}
+        self.agents.append({"prompt": prompt, **options})
+        return AgentResult(text=self.agent_answer(prompt, options))
 
 
 class _Log:
@@ -378,6 +510,9 @@ class FakeContext:
         self.nodes = _Registry(self)
         self.tools = _Registry(self)
         self.events = _Events(self)
+        self.hooks = _Hooks(self)
+        self.processes = _Processes()
+        self.agents = _Agents()
         self.ui = _Ui(self)
         self.tasklists = _Tasklists(self)
         self.runs = _Runs()
@@ -455,6 +590,19 @@ class FakeContext:
         if isinstance(result, NodeResult):
             return result
         return NodeResult(True, "" if result is None else str(result))
+
+    async def run_hook(self, name: str, data: dict, context: dict | None = None, source: str = "theron") -> dict:
+        """Run this plugin's handlers of a hook like Theron does and return the data they leave."""
+        import copy
+        data = copy.deepcopy(data)
+        hook = FakeHook(name, copy.deepcopy(context or {}), data, source)
+        for hname, fn, timeout in self.hooks.handlers:
+            if hname != name or hook.stopped:
+                continue
+            hook.data = copy.deepcopy(data)
+            returned = await _call(fn, hook)
+            data = returned if isinstance(returned, dict) else hook.data
+        return data
 
     async def call_tool(self, name: str, args: dict) -> str:
         return str(await _call(self.tools.items[name]["run"], args))

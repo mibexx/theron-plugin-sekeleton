@@ -13,8 +13,8 @@ min_theron = "0.14.0"            # the oldest Theron it runs on
 entry = "my_plugin"              # the Python package below with register(ctx)
 
 # What the plugin uses – shown to the user before installing (information, not a sandbox):
-# network, tasklists, runs, agent-tools, ui, files, ai
-permissions = ["network", "tasklists", "runs", "agent-tools", "ui", "ai"]
+# network, tasklists, processes, agents, runs, agent-tools, hooks, ui, files, ai
+permissions = ["network", "tasklists", "processes", "agents", "runs", "agent-tools", "hooks", "ui", "ai"]
 
 # Settings – Theron builds the settings dialog from them (Settings → Plugins → Settings …).
 # Types: text, secret, textarea, number, bool, choice (needs options), tasklist, project
@@ -58,3 +58,36 @@ key = "notify_on_finish"
 type = "bool"
 label = "Notify me when a task finishes"
 default = true
+
+# --- hooks.py examples
+[[settings]]
+key = "design_base_prompt"
+type = "textarea"
+label = "Base prompt for AI designs"
+description = "Added to every process and agent the AI designs, e.g. your house rules."
+
+[[settings]]
+key = "auto_answer"
+type = "bool"
+label = "Let Claude answer questions it is sure about"
+default = false
+
+[[settings]]
+key = "whatsapp_to"
+type = "text"
+label = "WhatsApp: send node changes to (+49…)"
+
+[[settings]]
+key = "whatsapp_from"
+type = "text"
+label = "WhatsApp: sender number (Twilio)"
+
+[[settings]]
+key = "twilio_sid"
+type = "text"
+label = "Twilio account SID"
+
+[[settings]]
+key = "twilio_token"
+type = "secret"
+label = "Twilio auth token"

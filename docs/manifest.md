@@ -49,8 +49,11 @@ see [Security](security.md). Unknown names are an error.
 |---|---|
 | `network` | talks to services on the internet (`ctx.http` or any other client) |
 | `tasklists` | reads or changes task lists, epics, requirements (`ctx.tasklists`) |
+| `processes` | reads, creates, changes or deletes processes (`ctx.processes`) |
+| `agents` | reads, creates, changes or deletes agents (`ctx.agents`) |
 | `runs` | starts tasks or reads their results (`ctx.runs`) |
 | `agent-tools` | gives agents tools (`ctx.tools`) |
+| `hooks` | steps into Theron's flow (`ctx.hooks`): prompts, results, questions, AI drafts |
 | `ui` | adds pages or windows (`ctx.ui`) |
 | `files` | reads or writes files outside `ctx.data_dir` |
 | `ai` | asks the AI model (`ctx.ai`) – this uses the user's Claude subscription |
