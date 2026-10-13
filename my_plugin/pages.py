@@ -57,3 +57,29 @@ class SyncPage(QWidget):
     def _done(self) -> None:
         self.button.setEnabled(True)
         self.show_state()
+
+
+class TasklistSyncPanel(QWidget):
+    """A panel next to Theron's task-list page (ctx.ui.add_panel("tasks", …)): whether the task list shown is the one
+    the Trello sync uses. ``view.context`` says which list the page shows; ``view.on_context`` calls back when the user
+    picks another one."""
+
+    def __init__(self, view, sync):
+        super().__init__()
+        self.view, self.ctx, self.sync = view, view.ctx, sync
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(10, 10, 10, 10)
+        self.text = QLabel()
+        self.text.setWordWrap(True)
+        lay.addWidget(self.text)
+        lay.addStretch(1)
+        view.on_context(lambda context: self.show_for(context.get("tasklist_id")))
+        self.show_for(view.context.get("tasklist_id"))
+
+    def show_for(self, tasklist_id) -> None:
+        if not tasklist_id:
+            self.text.setText(self.ctx.tr("No task list selected."))
+        elif tasklist_id == self.sync.tasklist_id():
+            self.text.setText(self.ctx.tr("This list is synced with Trello."))
+        else:
+            self.text.setText(self.ctx.tr("This list isn't synced – choose it in the plugin settings."))

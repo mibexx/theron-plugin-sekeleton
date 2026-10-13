@@ -51,6 +51,21 @@ class BoardPage(QWidget):
         self.cards.addItems([c["name"] for c in cards])
 ```
 
+## Panels, windows, buttons and forms *(Theron 0.16)*
+
+Beyond pages of its own, a plugin can extend Theron's pages – the step-by-step guide with examples is in the
+[manual](manual.md#3-add-windows-to-therons-pages):
+
+| Call | What |
+|---|---|
+| `ctx.ui.add_panel(page, title, factory, area="right"\|"bottom")` | a window next to / below any page – `factory(view)`, `view.context` says what the page shows |
+| `ctx.ui.open_window(title, factory, id=…)` | a window of its own |
+| `ctx.ui.add_action(page, label, run, place=…)` | a button: `top` (tool bar), `chat` (next to “Send”), `new` (next to “+ New …”), `lists` / `items` (task-list page), `sidebar` |
+| `ctx.fields.add(form, key, …)` | a field in the agent / process / project form |
+| `ctx.ui.add_form_button(form, label, run)` | a button in that form, next to “Save” |
+| `ctx.ui.ask_text` / `ask_choice` / `message` | small dialogs on the UI thread |
+| `ctx.ui.chat_input` / `set_chat_input` | read and fill the chat input |
+
 ## Threads – the one rule
 
 Widgets may only be touched on the **UI thread**. Page factories, button handlers and the settings page run there.

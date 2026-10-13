@@ -149,6 +149,37 @@ Desktop only – check `ctx.ui.available` first. Full guide: [Pages & settings U
 | `ctx.ui.settings_page(factory)` | extra settings UI below the generated fields; `factory(ctx)` returns a `QWidget`, optionally with a `save()` method called when the user saves |
 | `ctx.ui.call(fn, *args)` | run `fn(*args)` on the UI thread (asynchronously, returns immediately). Raises `PluginError` without a window. |
 | `ctx.ui.open_url(url)` | open a link in the user's browser (falls back to the system browser module without a window) |
+| `ctx.ui.add_panel(page, title, factory, *, id="", icon="", area="right", order=0, collapsed=False)` | a window next to (`right`) or below (`bottom`) a page; `page`: `cockpit`, `theron`, `projects`, `processes`, `agents`, `tasks`, `databases`, `"<plugin>/<page id>"`, a list or `"*"`. `factory(view)` → `QWidget` – [manual](manual.md#3-add-windows-to-therons-pages) *(0.16)* |
+| `ctx.ui.open_window(title, factory, *, id="", width=560, height=440)` / `close_window(id)` | a window of its own, not modal; the same `id` again brings it to the front; any thread *(0.16)* |
+| `ctx.ui.add_action(page, label, run, *, id="", icon="", tooltip="", style="ghost", place="top")` | a button on a page – `place`: `top`, `chat`, `new`, `lists`, `items`, `sidebar`; `label` text or `label(context)` → text / None (hidden); `run(context)` on the UI thread – [manual](manual.md#4-extend-buttons-and-forms) *(0.16)* |
+| `ctx.ui.refresh_actions()` | ask the `label` functions again *(0.16)* |
+| `ctx.ui.add_form_button(form, label, run, *, id="", icon="", tooltip="", style="ghost")` | a button in the form of `agent`, `process` or `project`; `run(form)` *(0.16)* |
+| `ctx.ui.ask_text(title, text, default="")` / `ask_choice(title, text, options)` / `message(title, text, level="info")` | small modal dialogs – UI thread only; None when cancelled *(0.16)* |
+| `ctx.ui.chat_input(page="cockpit")` / `set_chat_input(text, page="cockpit", append=False)` | read / fill the chat input of the cockpit or the THERON page *(0.16)* |
+
+### `view` (panels and plugin windows)
+
+`view.ctx`, `view.page`, `view.id`, `view.title`, `view.context` (what the page shows – keys per page in the
+[manual](manual.md#3-add-windows-to-therons-pages)), `view.on_context(fn)`, `view.set_title(text)`,
+`view.set_visible(bool)`.
+
+### `form` (form buttons)
+
+`form.kind`, `form.id` (None: new), `form.data` (stored), `form.values()` (as edited, with `plugin_fields`),
+`form.get(key, default=None)` / `form.set(key, value)` (the plugin's own fields), `form.save()`, `form.reload()`.
+
+---
+
+## `ctx.fields` *(0.16)*
+
+Extra fields of the plugin in Theron's forms – stored with the agent / process / project under `plugin_fields`.
+
+| Method | Description |
+|---|---|
+| `add(form, key, *, label, type="text", default=None, options=None, description="")` | a field in the form of `agent`, `process` or `project`; types `text`, `textarea`, `number`, `bool`, `choice` (needs `options`) |
+| `get(kind, entity_id, key, default=None)` | a value (the default if unset) |
+| `all(kind, entity_id)` | all values of this plugin |
+| `set(kind, entity_id, key, value)` | store a value (JSON) – also keys without a form field; the `<kind>.saved` event carries the plugin as source |
 
 ---
 
@@ -277,6 +308,18 @@ Tasks (“runs”) – what Theron works on with a project's process.
 | `list(project_id=None)` | `list[dict]` | top-level runs (of one project or all) |
 | `start(project_id, text, title="", process_id=None)` | `int` | start a task: `text` is the user's request, `process_id` another process than the project's. Needs the engine (app or slave; not in the app while it controls a slave). Raises `PluginError` if the project doesn't exist or has no process. |
 | `message(run_id, text)` | `None` | a message to Theron in that run, as if the user typed it |
+| `active(project_id=None)` | `list[dict]` | runs `running` or `waiting_input` (sub-process runs included) *(0.16)* |
+| `state(run_id)` | `dict \| None` | live state: `status`, `phase`, `process`, `project`, `question`, `agent_calls`, `cost_usd`, `steps` (`index`, `id`, `agent`, `backend`, `type`, `status`, `activity`, `status_note`, `calls`, `failures`, `loop`, `child_run`, `members`), `workers` *(0.16)* |
+| `workers(run_id=None)` | `list[dict]` | the agents working right now: `key`, `run_id`, `step_id`, `step`, `agent`, `agent_id`, `engine`, `started`, `member`, `loop`/`item`, `status_note`, `activity` *(0.16)* |
+| `events(run_id, since=0, types=None, limit=200)` | `list[dict]` | the run's log as events after event id `since` *(0.16)* |
+| `log(run_id, last=100, agent=None)` | `list[str]` | the last log lines as text *(0.16)* |
+| `watch(fn, *, run_id=None, types=None, agent=None)` | `Watch` | `fn(event)` for every new log event (plus `"line"`); `.cancel()`; app and slave *(0.16)* |
+| `await ask_worker(run_id, key, question, timeout=120)` | `str` | ask a working agent on the side (it keeps working); `key` = a worker's `key` or `step_id`; raises `PluginError` if none works there *(0.16)* |
+| `answer(run_id, text)` | `None` | answer the open question; raises `PluginError` if there is none *(0.16)* |
+| `stop(run_id, soon=False)` | `None` | stop the run (`soon`: let working agents finish) *(0.16)* |
+| `reset(run_id, step_id)` | `None` | restart the process from that node *(0.16)* |
+
+Guide with examples: [manual – running agents and logs](manual.md#9-read-the-running-agents-and-their-logs).
 
 The request of a run started by a plugin is marked with the source `plugin:<id>` (the run's `user` event).
 

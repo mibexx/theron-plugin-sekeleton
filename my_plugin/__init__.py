@@ -5,7 +5,7 @@ the plugin API (https://theron.mibexx.de/docs-plugins.html#en-pl-api). Delete wh
 below is independent of the others.
 """
 
-from . import events, hooks, nodes, tools
+from . import events, extend, hooks, monitor, nodes, tools
 from .integrations.sync import TaskListSync
 from .integrations.trello import TrelloAdapter
 
@@ -26,8 +26,17 @@ def register(ctx):
     events.register(ctx, sync)
     hooks.register(ctx)
 
-    # 5. UI: a navigation entry and extra settings – desktop app only (pages.py, settings_page.py)
+    # 5. Watching the running agents and their logs – and reacting (monitor.py; its panel: ui_monitor.py)
+    monitor.register(ctx)
+
+    # 6. Extending Theron's own pages: buttons (tool bar, chat, “+ New”, sidebar), form fields and buttons (extend.py)
+    extend.register(ctx)
+
+    # 7. UI: a navigation entry, a panel on Theron's pages and extra settings – desktop app only
     if ctx.ui.available:   # PySide6 exists only there (not on a slave / in the headless Docker image)
         from . import pages, settings_page
-        ctx.ui.add_page(ctx.tr("My Plugin"), lambda c: pages.SyncPage(c, sync), icon="⬢")
+        ctx.ui.add_page(ctx.tr("My Plugin"), lambda c: pages.SyncPage(c, sync), icon="⬢", id="sync")
+        # a window on Theron's task-list page: the sync state of the list shown (pages.py)
+        ctx.ui.add_panel("tasks", ctx.tr("Trello sync"), lambda view: pages.TasklistSyncPanel(view, sync),
+                         id="tasklist-sync", icon="▦")
         ctx.ui.settings_page(lambda c: settings_page.ConnectionTest(c, sync))

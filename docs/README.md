@@ -1,15 +1,16 @@
 # Theron Plugin Documentation
 
-The complete reference of Theron's plugin interface – **plugin API v1** (`theron_api = 1`, Theron 0.14.0 and newer).
+The complete reference of Theron's plugin interface – **plugin API v1** (`theron_api = 1`, Theron 0.14.0 and newer; panels, windows, buttons, form fields and `ctx.runs` reading need 0.16.0).
 
 | Document | What's in it |
 |---|---|
+| [**Manual**](manual.md) | **Step by step: pages, nodes, windows on pages, buttons and forms, task lists, events, own events, transactions, running agents and logs** |
 | [Getting started](getting-started.md) | From zero to an installed plugin in five minutes |
 | [Concepts & lifecycle](lifecycle.md) | How Theron finds, loads, starts and stops plugins; hosts; restarts; failures |
 | [plugin.toml](manifest.md) | Every field of the manifest, settings types, permissions, compatibility |
 | [The context `ctx`](context.md) | The complete API reference – every attribute and method |
 | [Process nodes](nodes.md) | `ctx.nodes.register`, the `node` object, results, fields, outputs, the AI designer |
-| [Pages & settings UI](ui.md) | Navigation pages, settings pages, threads, Theron's styles |
+| [Pages & settings UI](ui.md) | Navigation pages, panels and windows, buttons on pages, form fields and buttons, dialogs, settings pages, threads, Theron's styles |
 | [Hooks](hooks.md) | Stepping into Theron's flow: every hook, its context and what can be changed; plugin order |
 | [Events](events.md) | Every event with its payload, sources, delivery rules; a plugin's own events |
 | [Data shapes](data.md) | Projects, task lists, epics, requirements, processes (and the draft format), agents, runs |

@@ -18,6 +18,7 @@ import json
 import re
 import sys
 import tempfile
+import time
 import types
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -286,9 +287,83 @@ class _Ui:
         self.pages: list[dict] = []
         self.settings_factory = None
         self.opened: list[str] = []
+        self.panels: list[dict] = []
+        self.windows: dict[str, dict] = {}
+        self.actions: list[dict] = []
+        self.form_buttons: list[dict] = []
+        self.answers: list = []
+        self.dialogs: list[tuple] = []
+        self.chat: dict[str, str] = {}
+        self.refreshed = 0
 
     def add_page(self, title, factory, *, icon="", id=""):
-        self.pages.append({"title": title, "factory": factory, "icon": icon})
+        self.pages.append({"title": title, "factory": factory, "icon": icon, "id": id or title})
+
+    def add_panel(self, page, title, factory, *, id="", icon="", area="right", order=0, collapsed=False):
+        pages = (page,) if isinstance(page, str) else tuple(page)
+        known = ("cockpit", "theron", "projects", "processes", "agents", "tasks", "databases")
+        for p in pages:
+            if p != "*" and p not in known and "/" not in p:
+                raise PluginError(f"unknown page '{p}'")
+        if area not in ("right", "bottom"):
+            raise PluginError("area must be right or bottom")
+        self.panels.append({"pages": pages, "title": title, "factory": factory, "id": id or title, "icon": icon,
+                            "area": area, "order": order, "collapsed": collapsed})
+
+    def add_action(self, page, label, run, *, id="", icon="", tooltip="", style="ghost", place="top"):
+        if place not in ("top", "chat", "new", "lists", "items", "sidebar"):
+            raise PluginError(f"unknown place '{place}'")
+        if style not in ("ghost", "primary", "danger"):
+            raise PluginError("style must be ghost, primary or danger")
+        pages = (page,) if isinstance(page, str) else tuple(page)
+        self.actions.append({"pages": pages, "label": label, "run": run, "id": id or str(label), "icon": icon,
+                             "tooltip": tooltip, "style": style, "place": place})
+
+    def action(self, id):
+        """Test helper: the registered action ``id``."""
+        return next(a for a in self.actions if a["id"] == id)
+
+    def label_of(self, id, **context):
+        """Test helper: the text the button shows for ``context`` (None = hidden)."""
+        a = self.action(id)
+        return a["label"](dict(context)) if callable(a["label"]) else a["label"]
+
+    def click(self, id, **context):
+        """Test helper: click the button ``id`` with what the page shows."""
+        return self.action(id)["run"](dict(context))
+
+    def refresh_actions(self):
+        self.refreshed += 1
+
+    def add_form_button(self, form, label, run, *, id="", icon="", tooltip="", style="ghost"):
+        if form not in ("agent", "process", "project"):
+            raise PluginError(f"unknown form '{form}'")
+        self.form_buttons.append({"form": form, "label": label, "run": run, "id": id or str(label), "icon": icon,
+                                  "tooltip": tooltip, "style": style})
+
+    # dialogs: put the answers your test wants in ``answers`` (popped in order); ``dialogs`` records what was asked
+    def ask_text(self, title, text, default=""):
+        self.dialogs.append(("text", title, text))
+        return self.answers.pop(0) if self.answers else None
+
+    def ask_choice(self, title, text, options):
+        self.dialogs.append(("choice", title, text, list(options)))
+        return self.answers.pop(0) if self.answers else None
+
+    def message(self, title, text, level="info"):
+        self.dialogs.append(("message", title, text, level))
+
+    def chat_input(self, page="cockpit"):
+        return self.chat.get(page, "")
+
+    def set_chat_input(self, text, page="cockpit", append=False):
+        self.chat[page] = (self.chat.get(page, "").rstrip() + "\n" + text).strip() if append else text
+
+    def open_window(self, title, factory, *, id="", width=560, height=440):
+        self.windows[id or title] = {"title": title, "factory": factory, "size": (width, height)}
+
+    def close_window(self, id):
+        self.windows.pop(id, None)
 
     def settings_page(self, factory):
         self.settings_factory = factory
@@ -457,22 +532,201 @@ class _Agents(_Library):
         return self._add({"name": name, "task": task, "rules": rules, **fields})
 
 
+class _Fields:
+    """Plugin fields in Theron's forms – values per (kind, id) in memory."""
+
+    def __init__(self):
+        self.specs: list[dict] = []
+        self.values: dict[tuple[str, int], dict] = {}
+
+    def add(self, form, key, *, label, type="text", default=None, options=None, description=""):
+        if form not in ("agent", "process", "project"):
+            raise PluginError(f"unknown form '{form}'")
+        if type not in ("text", "textarea", "number", "bool", "choice"):
+            raise PluginError(f"unknown field type '{type}'")
+        if type == "choice" and not options:
+            raise PluginError("a choice field needs options")
+        self.specs.append({"form": form, "key": key, "label": label, "type": type, "default": default,
+                           "options": list(options or []), "description": description})
+
+    def all(self, kind, entity_id):
+        out = {f["key"]: f["default"] if f["default"] is not None else {"number": 0, "bool": False}.get(f["type"], "")
+               for f in self.specs if f["form"] == kind}
+        return {**out, **self.values.get((kind, entity_id), {})}
+
+    def get(self, kind, entity_id, key, default=None):
+        return self.all(kind, entity_id).get(key, default)
+
+    def set(self, kind, entity_id, key, value):
+        json.dumps(value)
+        self.values.setdefault((kind, entity_id), {})[key] = value
+
+
+class FakeForm:
+    """What a form button's ``run(form)`` gets in Theron – for tests of form buttons."""
+
+    def __init__(self, ctx, kind="agent", id=None, values=None):
+        self.ctx, self.kind, self.id = ctx, kind, id
+        self._values = dict(values or {})
+        self.fields: dict = {}
+        self.saved = self.reloaded = 0
+
+    @property
+    def data(self):
+        return dict(self._values) if self.id else None
+
+    def values(self):
+        return {**self._values, "plugin_fields": {self.ctx.id: dict(self.fields)}}
+
+    def get(self, key, default=None):
+        return self.fields.get(key, default)
+
+    def set(self, key, value):
+        self.fields[key] = value
+
+    def save(self):
+        self.saved += 1
+        return self.id or 1
+
+    def reload(self):
+        self.reloaded += 1
+
+
+class FakeView:
+    """What a panel's / window's factory gets in Theron (``view``) – for tests of panel code."""
+
+    def __init__(self, ctx, page="cockpit", context=None):
+        self.ctx, self.page, self.id, self.title = ctx, page, "", ""
+        self.context = dict(context or {"page": page})
+        self.visible = True
+        self._listeners = []
+
+    def on_context(self, fn):
+        self._listeners.append(fn)
+        return fn
+
+    def set_title(self, text):
+        self.title = text
+
+    def set_visible(self, visible):
+        self.visible = bool(visible)
+
+    def show(self, **context):
+        """Test helper: the page now shows ``context`` – calls the on_context callbacks."""
+        self.context = {"page": self.page, **context}
+        for fn in list(self._listeners):
+            fn(dict(self.context))
+
+
+class _Watch:
+    def __init__(self, runs, entry):
+        self._runs, self._entry = runs, entry
+
+    def cancel(self):
+        if self._entry in self._runs.watchers:
+            self._runs.watchers.remove(self._entry)
+
+
 class _Runs:
+    """Fake tasks: put runs, workers and log events in and let your code read and react to them.
+
+        ctx.runs.add_run(17, title="Shop", status="running")
+        ctx.runs.add_worker(17, "dev", "Developer", status_note="Tests laufen")
+        await ctx.runs.feed({"run_id": 17, "type": "agent_tool", "agent": "Developer", "summary": "Bash: pytest"})
+    """
+
     def __init__(self):
         self.started: list[dict] = []
+        self.runs: dict[int, dict] = {}
+        self.worker_list: list[dict] = []
+        self.event_log: list[dict] = []
+        self.watchers: list[tuple] = []
+        self.answers: list[tuple[int, str]] = []
+        self.messages: list[tuple[int, str]] = []
+        self.stopped: list[tuple[int, bool]] = []
+        self.resets: list[tuple[int, str]] = []
+        self.worker_answers: dict[str, str] = {}
 
+    # ---- test helpers
+    def add_run(self, run_id, title="", status="running", project_id=1, question=None, steps=None):
+        self.runs[run_id] = {"id": run_id, "project_id": project_id, "title": title, "status": status,
+                             "summary": "", "goal_reached": None, "tasklist_id": None, "parent_run": None,
+                             "question": question, "steps": list(steps or [])}
+        return run_id
+
+    def add_worker(self, run_id, step_id, agent, status_note="", activity="", **extra):
+        w = {"key": step_id, "run_id": run_id, "step_id": step_id, "step": 0, "agent": agent,
+             "engine": "Claude Code · sonnet", "started": time.time(), "member": False, "status_note": status_note,
+             "activity": activity, **extra}
+        self.worker_list.append(w)
+        return w
+
+    async def feed(self, event: dict):
+        """A new log event: stored for events()/log() and handed to every matching watch."""
+        ev = {"id": len(self.event_log) + 1, "ts": time.time(), **event}
+        self.event_log.append(ev)
+        for fn, run_id, types, agent in list(self.watchers):
+            if (run_id is None or ev.get("run_id") == run_id) and (not types or ev.get("type") in types) \
+                    and (not agent or ev.get("agent") == agent):
+                await _call(fn, {**ev, "line": f"{ev.get('agent', '')} {ev.get('type')}"})
+        return ev
+
+    # ---- the API
     def start(self, project_id, text, title="", process_id=None):
         self.started.append({"project_id": project_id, "text": text, "title": title})
         return len(self.started)
 
     def get(self, run_id):
-        return None
+        r = self.runs.get(run_id)
+        return {k: v for k, v in r.items() if k not in ("question", "steps")} if r else None
 
     def list(self, project_id=None):
-        return []
+        return [self.get(i) for i, r in self.runs.items() if project_id in (None, r["project_id"])]
+
+    def active(self, project_id=None):
+        return [r for r in self.list(project_id) if r["status"] in ("running", "waiting_input")]
+
+    def state(self, run_id):
+        r = self.runs.get(run_id)
+        if not r:
+            return None
+        return {**self.get(run_id), "phase": "", "process": "", "project": "", "question": r["question"],
+                "agent_calls": 0, "cost_usd": 0.0, "steps": r["steps"], "workers": self.workers(run_id)}
+
+    def workers(self, run_id=None):
+        return [dict(w) for w in self.worker_list if run_id in (None, w["run_id"])]
+
+    def events(self, run_id, since=0, types=None, limit=200):
+        return [dict(e) for e in self.event_log if e.get("run_id") == run_id and e["id"] > since
+                and (not types or e["type"] in types)][:limit]
+
+    def log(self, run_id, last=100, agent=None):
+        return [f"{e.get('agent', '')} {e['type']}" for e in self.event_log
+                if e.get("run_id") == run_id and (not agent or e.get("agent") == agent)][-last:]
+
+    def watch(self, fn, *, run_id=None, types=None, agent=None):
+        entry = (fn, run_id, list(types or []), agent)
+        self.watchers.append(entry)
+        return _Watch(self, entry)
+
+    async def ask_worker(self, run_id, key, question, timeout=120):
+        if not any(w["run_id"] == run_id and key in (w["key"], w["step_id"]) for w in self.worker_list):
+            raise PluginError(f"no agent works on {run_id}/{key} right now")
+        return self.worker_answers.get(key, "")
 
     def message(self, run_id, text):
-        pass
+        self.messages.append((run_id, text))
+
+    def answer(self, run_id, text):
+        if not (self.runs.get(run_id) or {}).get("question"):
+            raise PluginError(f"run {run_id} has no open question")
+        self.answers.append((run_id, text))
+
+    def stop(self, run_id, soon=False):
+        self.stopped.append((run_id, soon))
+
+    def reset(self, run_id, step_id):
+        self.resets.append((run_id, step_id))
 
 
 @dataclass
@@ -549,6 +803,7 @@ class FakeContext:
         self.tools = _Registry(self)
         self.events = _Events(self)
         self.hooks = _Hooks(self)
+        self.fields = _Fields()
         self.processes = _Processes()
         self.agents = _Agents()
         self.ui = _Ui(self)

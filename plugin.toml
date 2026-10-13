@@ -9,7 +9,7 @@ author = "Your Name"
 homepage = "https://github.com/you/your-plugin"
 license = "MIT"
 theron_api = 1                   # the plugin API this plugin is written for
-min_theron = "0.14.0"            # the oldest Theron it runs on
+min_theron = "0.16.0"            # the oldest Theron it runs on (panels, buttons, form fields, ctx.runs reading)
 entry = "my_plugin"              # the Python package below with register(ctx)
 
 # What the plugin uses – shown to the user before installing (information, not a sandbox):
@@ -91,3 +91,17 @@ label = "Twilio account SID"
 key = "twilio_token"
 type = "secret"
 label = "Twilio auth token"
+
+[[settings]]
+key = "watch_pattern"
+type = "text"
+label = "Worker watch: notify when an agent's output matches"
+description = "A regular expression, e.g. Traceback|FAILED|Error: – empty switches the watch off."
+default = "Traceback|FAILED|Error:"
+
+[[settings]]
+key = "stuck_minutes"
+type = "number"
+label = "Worker watch: ask an agent after … minutes on one step"
+description = "0 = off. The agent is asked on the side what it is doing; its answer comes as a notification."
+default = 0

@@ -15,6 +15,8 @@ new release.
 
 ## Contents
 
+- **[The manual – step by step](docs/manual.md)**: pages, nodes, windows on pages, buttons and forms, task lists,
+  events, own events, transactions, running agents and logs
 - [What a plugin can do](#what-a-plugin-can-do)
 - [Quick start](#quick-start)
 - [Layout of this skeleton](#layout-of-this-skeleton)
@@ -42,6 +44,9 @@ new release.
 | Extension | What it is | In this skeleton |
 |---|---|---|
 | **Navigation entry with UI** | A page of its own in Theron's sidebar (a PySide6 widget). | [`my_plugin/pages.py`](my_plugin/pages.py) |
+| **Windows on Theron's pages** | Panels next to or below any page (cockpit, THERON, projects, processes, agents, tasks, databases) that follow what the page shows, and windows of their own. | [`my_plugin/ui_monitor.py`](my_plugin/ui_monitor.py), [`my_plugin/pages.py`](my_plugin/pages.py) |
+| **Buttons & forms** | Buttons in a page's tool bar, next to “Send” in the chat, next to “+ New …”, on the task-list page, in the sidebar; extra fields and buttons in the agent, process and project forms; small dialogs. | [`my_plugin/extend.py`](my_plugin/extend.py) |
+| **Running agents & logs** | Read the tasks, the agents working right now and their logs – live; ask a working agent on the side; answer, stop, restart. | [`my_plugin/monitor.py`](my_plugin/monitor.py) |
 | **Settings** | Declared in `plugin.toml`; Theron builds the dialog. Optional custom UI below it. | [`plugin.toml`](plugin.toml), [`my_plugin/settings_page.py`](my_plugin/settings_page.py) |
 | **Process nodes** | New nodes in the process editor – with fields, ✔ / ✖ or named outputs (a switch whose outputs follow its settings), named inputs, used by Theron's AI process designer. | [`my_plugin/nodes.py`](my_plugin/nodes.py) |
 | **Integrations** | Talk to other services: read and change task lists, react to events, run on a schedule, HTTP. | [`my_plugin/integrations/`](my_plugin/integrations) |
@@ -85,7 +90,10 @@ my-plugin/
 ├── my_plugin/                 the plugin's Python package
 │   ├── __init__.py            register(ctx) – wires everything together
 │   ├── nodes.py               process nodes
-│   ├── pages.py               a navigation page (desktop only)
+│   ├── pages.py               a navigation page and a panel on the task-list page (desktop only)
+│   ├── extend.py              buttons on Theron's pages, form fields and form buttons
+│   ├── monitor.py             watching the running agents and their logs – and reacting
+│   ├── ui_monitor.py          the “Agents at work” panel and a live-log window (desktop only)
 │   ├── settings_page.py       extra settings UI (desktop only)
 │   ├── tools.py               tools for agents
 │   ├── events.py              event handlers
@@ -353,14 +361,15 @@ Everything a plugin does goes through `ctx` – the only interface to Theron, st
 | `data_dir` | a folder of its own for files, kept across updates |
 | `nodes.register(…)` | a process node |
 | `tools.register(…)` | a tool for Claude agents |
-| `ui` | `available`, `add_page`, `settings_page`, `call(fn)` (UI thread), `open_url` |
+| `ui` | `available`, `add_page`, `add_panel`, `open_window`, `add_action` (places `top`, `chat`, `new`, `lists`, `items`, `sidebar`), `add_form_button`, `ask_text`, `ask_choice`, `message`, `chat_input`, `set_chat_input`, `refresh_actions`, `settings_page`, `call(fn)` (UI thread), `open_url` |
+| `fields` | `add(form, key, …)`, `get`, `all`, `set` – extra fields in the agent / process / project forms |
 | `events.on(name, fn)`, `events.emit(name, payload)` | react to events (decorator or call); send the plugin's own |
 | `hooks.on(name, fn, timeout=)`, `await hooks.call(name, data)` | step into Theron's flow; offer the plugin's own hooks |
 | `processes` | `list`, `get`, `find`, `create`, `create_from_draft`, `to_draft`, `update`, `delete`, `problems` |
 | `agents` | `list`, `get`, `find`, `create`, `update`, `delete` |
 | `schedule(seconds, fn, first=)`, `on_start`, `on_stop`, `spawn(fn)` | background work |
 | `tasklists` | `projects`, `list`, `get`, `find`, `create`, `update`, `delete`, `add_epic`, `update_epic`, `delete_epic`, `add_requirement`, `update_requirement`, `delete_requirement`, `epic`, `requirement` |
-| `runs` | `start(project_id, text, title=)`, `get`, `list`, `message` |
+| `runs` | `start`, `get`, `list`, `message`, `active`, `state`, `workers`, `events`, `log`, `watch`, `ask_worker`, `answer`, `stop`, `reset` |
 | `ai.ask(prompt, system=, model="haiku")`, `ai.session(system=, model=)`, `ai.agent(prompt, cwd=, tools=, …)` | talk to Claude: one answer, a conversation, a Claude Code agent with tools – the user's subscription |
 | `http` | async `get`, `post`, `put`, `patch`, `delete` → `.status`, `.json()`, `.text`, `.raise_for_status()` |
 | `log(text)`, `log.error`, `log.exception`, `notify(text, level)` | log (Settings → Plugins → Log) and toasts |

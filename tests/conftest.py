@@ -18,6 +18,15 @@ def ctx():
 
 
 @pytest.fixture
+def ui_ctx():
+    """The plugin as in the desktop app (ctx.ui.available) – registers its buttons, panels and pages (needs PySide6)."""
+    c = FakeContext.from_plugin(ROOT)
+    c.ui.available = True
+    c.module = load_plugin(c, ROOT)
+    return c
+
+
+@pytest.fixture
 def trello(ctx):
     """A fake Trello board: lists To do / Doing / Done and two cards – the sync talks to it through ctx.http."""
     board = {"lists": [{"id": "L1", "name": "To do"}, {"id": "L2", "name": "Doing"}, {"id": "L3", "name": "Done"}],
