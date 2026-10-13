@@ -35,6 +35,8 @@ ctx.events.on("*", log_everything)          # every event
 | `node.transition` | `{"name", "run_id", "from", "to", "verdict", "handovers", "context"}` | a process moves on from one node to the next – after an agent, a decision, a loop … (once per target, e.g. for every path of an AND split) |
 | `agent.started` | `{"name", "run_id", "prompt", "handovers", "context"}` | an agent starts a turn (after `agent.before_start`) |
 | `agent.finished` | `{"name", "run_id", "prompt", "result", "verdict", "error", "cost_usd", "context"}` | an agent finished a turn (after `agent.after_end`) |
+| `agent.status` | `{"name", "run_id", "text", "item"?, "context"}` | Theron asked a working agent how far it is (every few minutes, setting *Status every … min*) – `text` is the agent's own short answer; `item` for a loop item |
+| `run.reset` | `{"name", "run_id", "node", "node_id", "reset", "context"}` | the user restarted the process from a node – `reset` names the nodes after it that start anew, too |
 | `hitl.asked` | `{"name", "run_id", "request_id", "question", "options", "recommended", "details", "context"}` | Theron asks the user something |
 | `hitl.answered` | `{"name", "run_id", "request_id", "answer", "source", "context"}` | a question was answered – `source`: `"app"`, `"web:<user>"`, `"api"`, `"plugin:<id>"` … |
 | `tasklist.created` | `{"name", "run_id", "mode", "tasklist", "tasklist_id", "context"}` | a ☰ task-list node created a temporary list (`mode` `"new"` / `"copy"`) or filled a real one (`"fill"`) |
