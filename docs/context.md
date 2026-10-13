@@ -100,7 +100,7 @@ caches, exports, downloaded attachments. Kept across updates. The plugin's log `
 
 ## `ctx.nodes`
 
-### `ctx.nodes.register(kind, *, label, run, description="", icon="⬢", fields=None, outputs="success_failure", ai_hint="")`
+### `ctx.nodes.register(kind, *, label, run, description="", icon="⬢", fields=None, outputs="success_failure", ai_hint="", inputs=None, wait="all")`
 
 Registers a process node. Returns its `NodeType`. Full guide: [Process nodes](nodes.md).
 
@@ -112,10 +112,14 @@ Registers a process node. Returns its `NodeType`. Full guide: [Process nodes](no
 | `description` | `str` | tooltip / properties panel, also told to the orchestrator |
 | `icon` | `str` | one character or emoji shown before the label |
 | `fields` | `list[dict]` | the node's settings in the editor – see [fields](nodes.md#fields) |
-| `outputs` | `str` | `"success_failure"` (✔ and ✖) or `"success"` (✔ only) |
+| `outputs` | `str` \| `list` \| callable | `"success_failure"` (✔ and ✖), `"success"` (✔ only), a list of **named outputs** (`["yes", "no"]` or `[{"id": "yes", "label": "Approved"}]`) or a function `outputs(config) -> list` that works them out from the node's settings – see [named outputs](nodes.md#named-outputs-a-switch) |
 | `ai_hint` | `str` | when Theron's AI designer and the orchestrator should use the node |
+| `inputs` | `None` \| `list` \| callable | `None`: one input. Otherwise **named inputs**, given like `outputs` – see [named inputs](nodes.md#named-inputs) |
+| `wait` | `str` | with several inputs: `"all"` – the node runs once every connected input got a hand-over; `"any"` – as soon as one arrives |
 
-Raises `PluginError` for an invalid `kind`, `outputs` or field definition.
+Raises `PluginError` for an invalid `kind`, `outputs`, `inputs`, `wait` or field definition – and when the port list
+(or the port function, called with the default settings) is invalid: ids are 1–40 letters, digits, `-` or `_`,
+unique, at most 20 ports.
 
 ---
 

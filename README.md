@@ -43,7 +43,7 @@ new release.
 |---|---|---|
 | **Navigation entry with UI** | A page of its own in Theron's sidebar (a PySide6 widget). | [`my_plugin/pages.py`](my_plugin/pages.py) |
 | **Settings** | Declared in `plugin.toml`; Theron builds the dialog. Optional custom UI below it. | [`plugin.toml`](plugin.toml), [`my_plugin/settings_page.py`](my_plugin/settings_page.py) |
-| **Process nodes** | New nodes in the process editor – with fields, ✔ / ✖ outputs, used by Theron's AI process designer. | [`my_plugin/nodes.py`](my_plugin/nodes.py) |
+| **Process nodes** | New nodes in the process editor – with fields, ✔ / ✖ or named outputs (a switch whose outputs follow its settings), named inputs, used by Theron's AI process designer. | [`my_plugin/nodes.py`](my_plugin/nodes.py) |
 | **Integrations** | Talk to other services: read and change task lists, react to events, run on a schedule, HTTP. | [`my_plugin/integrations/`](my_plugin/integrations) |
 | **Tools for agents** | Extra tools every Claude agent can call while it works. | [`my_plugin/tools.py`](my_plugin/tools.py) |
 | **Events** | React to finished tasks, node changes, questions, changed requirements … | [`my_plugin/events.py`](my_plugin/events.py) |
@@ -74,8 +74,8 @@ Install the package in Theron: **Settings → Plugins → “Upload plugin …�
 theron plugin install dist/my-plugin-0.1.0.theronplugin
 ```
 
-Restart Theron. You'll find **MY PLUGIN** in the navigation, three new nodes in the process editor under **TOOLS**
-(Summarize, Check, Import from Trello) and the plugin's settings under **Settings → Plugins → Settings …**.
+Restart Theron. You'll find **MY PLUGIN** in the navigation, five new nodes in the process editor under **TOOLS**
+(Summarize, Check, Import from Trello, AI router, Merge code & docs) and the plugin's settings under **Settings → Plugins → Settings …**.
 
 ## Layout of this skeleton
 
@@ -168,6 +168,25 @@ What `node` brings:
 | `node.success(text, tasklist_id=None)` / `node.failure(text)` | the result – `tasklist_id` hands a list on, e.g. to a loop |
 
 Field types: `text`, `textarea`, `number`, `bool`, `choice` (with `options`), `tasklist`, `project`.
+
+**Switch-like nodes:** `outputs` can also be a list of named outputs – or a function of the node's settings, so the
+outputs follow what the user configures (the editor redraws the ports). `run` picks the way on with `node.route(...)`:
+
+```python
+def routes(config):                    # one output per line of the "routes" field, plus "Other"
+    names = [ln.strip() for ln in config["routes"].splitlines() if ln.strip()]
+    return [{"id": f"r{k}", "label": n} for k, n in enumerate(names)] + [{"id": "other", "label": "Other"}]
+
+async def route(node):
+    hit = next((o for o in node.outputs if o["label"].lower() in node.input.lower()), None)
+    return node.route(hit["id"] if hit else "other")      # or several: node.route(["r0", "r1"])
+
+ctx.nodes.register("route", label=ctx.tr("Router"), run=route, outputs=routes,
+                   fields=[{"key": "routes", "type": "textarea", "default": "Bug\nFeature"}])
+```
+
+Named **inputs** work the same way (`inputs=[{"id": "code", "label": "Code"}, …]`, `wait="all"` or `"any"`); the
+hand-overs arrive per input in `node.inputs`. Details: [docs/nodes.md](docs/nodes.md#named-outputs-a-switch).
 
 ### A page in the navigation
 

@@ -34,5 +34,13 @@
   "WhatsApp: send node changes to (+49…)": "WhatsApp: Node-Wechsel senden an (+49…)",
   "WhatsApp: sender number (Twilio)": "WhatsApp: Absendernummer (Twilio)",
   "Twilio account SID": "Twilio Account-SID",
-  "Twilio auth token": "Twilio Auth-Token"
+  "Twilio auth token": "Twilio Auth-Token",
+  "Other": "Sonstiges",
+  "AI router": "KI-Weiche",
+  "Sends the input on via the route that fits best – one output per route.": "Leitet die Eingabe über den passendsten Weg weiter – ein Ausgang je Weg.",
+  "Routes (one per line)": "Wege (einer pro Zeile)",
+  "Merge code & docs": "Code & Doku zusammenführen",
+  "Code": "Code",
+  "Docs": "Doku",
+  "Waits for both inputs and hands on one combined report.": "Wartet auf beide Eingänge und gibt einen gemeinsamen Bericht weiter."
 }

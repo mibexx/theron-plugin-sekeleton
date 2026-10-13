@@ -3,7 +3,7 @@ import asyncio
 
 
 def test_registers_nodes_tools_jobs_and_events(ctx):
-    assert set(ctx.nodes.items) == {"summarize", "check", "trello-import"}
+    assert set(ctx.nodes.items) == {"summarize", "check", "trello-import", "route", "merge"}
     assert set(ctx.tools.items) == {"list_tasklists", "add_requirement"}
     assert ctx.jobs and ctx.jobs[0]["every"] == 5 * 60
     assert {name for name, _ in ctx.events.listeners} == {"run.finished", "requirement.saved", "settings.changed",
@@ -18,6 +18,22 @@ def test_summarize_and_check_nodes(ctx):
     ctx.ai.answer = lambda prompt, system, model: "NO – there is no price"
     result = asyncio.run(ctx.run_node("check", config={"rule": "contains a price"}, handovers=[{"text": "x"}]))
     assert not result.ok and "no price" in result.text
+
+
+def test_router_outputs_follow_its_settings(ctx):
+    ports = ctx.node_ports("route", {"routes": "Bug\nQuestion"})
+    assert [o["label"] for o in ports["outputs"]] == ["Bug", "Question", "Other"]
+    ctx.ai.answer = lambda prompt, system, model: "2"
+    result = asyncio.run(ctx.run_node("route", config={"routes": "Bug\nQuestion"}, handovers=[{"text": "how do I…?"}]))
+    assert result.outputs == ["r1"] and "Question" in result.text
+    ctx.ai.answer = lambda prompt, system, model: "0"
+    assert asyncio.run(ctx.run_node("route", handovers=[{"text": "?"}])).outputs == ["other"]
+
+
+def test_merge_combines_its_two_inputs(ctx):
+    assert [i["id"] for i in ctx.node_ports("merge")["inputs"]] == ["code", "docs"]
+    result = asyncio.run(ctx.run_node("merge", inputs={"code": [{"text": "def f(): …"}], "docs": [{"text": "f does x"}]}))
+    assert result.ok and "def f()" in result.text and "f does x" in result.text
 
 
 def test_agent_tools(ctx):

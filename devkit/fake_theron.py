@@ -15,10 +15,11 @@ import asyncio
 import importlib.util
 import inspect
 import json
+import re
 import sys
 import tempfile
 import types
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
@@ -46,14 +47,44 @@ class NodeResult:
     ok: bool
     text: str = ""
     tasklist_id: int | None = None
+    outputs: list = field(default_factory=list)   # named outputs: where the process goes on
+
+
+def norm_ports(raw) -> list[dict]:
+    """Like Theron: ["a", "b"] or [{"id", "label"}] → [{"id", "label"}] (unique ids of letters, digits, - and _)."""
+    if isinstance(raw, (str, dict)) or not isinstance(raw, (list, tuple)):
+        raise PluginError("ports: a list")
+    out, seen = [], set()
+    for p in raw:
+        p = {"id": p} if isinstance(p, str) else dict(p)
+        if not re.match(r"^[A-Za-z0-9_-]{1,40}$", str(p.get("id") or "")) or p["id"] in seen:
+            raise PluginError(f"ports: bad or doubled id {p.get('id')!r}")
+        seen.add(p["id"])
+        out.append({"id": p["id"], "label": str(p.get("label") or p["id"])})
+    return out
+
+
+def node_ports(spec: dict, config: dict) -> dict:
+    """The ports a registered node has for ``config`` – as Theron's editor works them out."""
+    def resolve(value):
+        if value is None or value in ("success_failure", "success"):
+            return []
+        return norm_ports(value(config) if callable(value) else value)
+    return {"inputs": resolve(spec.get("inputs")), "outputs": resolve(spec.get("outputs", "success_failure"))}
 
 
 class FakeNodeRun:
-    def __init__(self, ctx, config, handovers, task="", instructions="", project=None, tasklist_id=None):
+    def __init__(self, ctx, config, handovers, task="", instructions="", project=None, tasklist_id=None,
+                 inputs=None, outputs=None):
         self.ctx = ctx
         self.config = config
+        if inputs:   # named inputs: {"code": [hand-overs], "docs": [...]} – handovers are all of them together
+            handovers = [dict(h, input=k) for k, hs in inputs.items() for h in hs]
         self.handovers = [{"from": h.get("from", "Agent"), "text": h.get("text", ""), "verdict": h.get("verdict", "success")}
                           for h in handovers]
+        self.inputs = {k: [{"from": h.get("from", "Agent"), "text": h.get("text", ""),
+                            "verdict": h.get("verdict", "success")} for h in hs] for k, hs in (inputs or {}).items()}
+        self.outputs = outputs or []
         self.input = "\n\n".join(f"## {h['from']}\n{h['text']}" for h in self.handovers)
         self.task = task
         self.instructions = instructions
@@ -71,6 +102,13 @@ class FakeNodeRun:
 
     def failure(self, text):
         return NodeResult(False, text)
+
+    def route(self, output, text="", tasklist_id=None):
+        chosen = [output] if isinstance(output, str) else list(output)
+        known = [o["id"] for o in self.outputs]
+        if not chosen or any(o not in known for o in chosen):
+            raise PluginError(f"route: unknown output {chosen} (outputs: {', '.join(known) or '–'})")
+        return NodeResult(True, text, tasklist_id, chosen)
 
 
 class FakeResponse:
@@ -585,11 +623,28 @@ class FakeContext:
         spec = self.nodes.items[kind]
         cfg = {f["key"]: f.get("default") for f in spec.get("fields") or []}
         cfg.update(config or {})
-        node = FakeNodeRun(self, cfg, handovers or [], **kw)
+        ports = node_ports(spec, cfg)
+        unknown = set(kw.get("inputs") or {}) - {i["id"] for i in ports["inputs"]}
+        if unknown:
+            raise PluginError(f"{kind} has no input(s) {sorted(unknown)}")
+        node = FakeNodeRun(self, cfg, handovers or [], outputs=ports["outputs"], **kw)
         result = await _call(spec["run"], node)
+        if isinstance(result, dict):
+            out = result.get("output", result.get("outputs")) or []
+            result = NodeResult(bool(result.get("ok", True)), str(result.get("text", "")), result.get("tasklist_id"),
+                                [out] if isinstance(out, str) else list(out))
         if isinstance(result, NodeResult):
+            if ports["outputs"] and result.ok and not result.outputs:
+                raise PluginError(f"{kind} has named outputs – return node.route(...)")
             return result
         return NodeResult(True, "" if result is None else str(result))
+
+    def node_ports(self, kind: str, config: dict | None = None) -> dict:
+        """The ports of a registered node for ``config`` – {"inputs": [...], "outputs": [...]}."""
+        spec = self.nodes.items[kind]
+        cfg = {f["key"]: f.get("default") for f in spec.get("fields") or []}
+        cfg.update(config or {})
+        return node_ports(spec, cfg)
 
     async def run_hook(self, name: str, data: dict, context: dict | None = None, source: str = "theron") -> dict:
         """Run this plugin's handlers of a hook like Theron does and return the data they leave."""

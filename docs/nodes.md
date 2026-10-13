@@ -25,7 +25,7 @@ def register(ctx):
 
 ## Registration
 
-`ctx.nodes.register(kind, *, label, run, description="", icon="⬢", fields=None, outputs="success_failure", ai_hint="")`
+`ctx.nodes.register(kind, *, label, run, description="", icon="⬢", fields=None, outputs="success_failure", ai_hint="", inputs=None, wait="all")`
 – see the [parameter table](context.md#ctxnodes). The node's id is `"<plugin id>/<kind>"`; it is stored in every
 process that uses the node, so **never rename `kind` (or the plugin id) after release** – processes would lose the
 node.
@@ -36,6 +36,62 @@ node.
 |---|---|---|
 | `"success_failure"` | ✔ and ✖ outputs, like an agent step | `node.success()` → ✔, `node.failure()` → ✖. The ✖ edge may loop back (e.g. to an agent that fixes something) – the user sets *max. iterations* in the properties panel. Without a ✖ edge, Theron asks the user. |
 | `"success"` | one ✔ output | `node.success()` → ✔. `node.failure()` stops there and Theron asks the user what to do. |
+| a list / a function | one output per entry, labelled | `node.route("id")` → that output (or several: `node.route(["a", "b"])`). See [named outputs](#named-outputs-a-switch). |
+
+## Named outputs (a switch)
+
+A node can have as many outputs as it needs – like Theron's decision node. Give them as a list, or as a function of
+the node's settings when they depend on what the user configured:
+
+```python
+def register(ctx):
+    def routes(config):                       # called by the editor whenever the settings change
+        names = [ln.strip() for ln in config["routes"].splitlines() if ln.strip()]
+        return [{"id": f"r{k}", "label": n} for k, n in enumerate(names)] + [{"id": "other", "label": "Other"}]
+
+    async def route(node):
+        text = node.input.lower()
+        hit = next((o for o in node.outputs if o["label"].lower() in text), None)
+        return node.route(hit["id"] if hit else "other", f"matched {hit['label'] if hit else 'nothing'}")
+
+    ctx.nodes.register("route", label=ctx.tr("Keyword router"), icon="◇", run=route, outputs=routes,
+                       fields=[{"key": "routes", "type": "textarea", "default": "Bug\nFeature"}])
+```
+
+- **Ports:** each output is `{"id", "label"}` (a plain string is both). The id is what `node.route()` takes and what
+  the process stores – keep ids stable; the label is what the editor shows next to the port.
+- **Dynamic:** with a function, the editor asks it again whenever a field of the node changes and redraws the ports.
+  Edges of outputs that still exist stay; the edge of an output that's gone is removed. When a process is opened,
+  the ports are worked out again (an update of the plugin may have changed them). The function gets the full config
+  (defaults merged) and must be quick and side-effect free; if it raises, the editor keeps the old ports.
+- **Routing:** `node.route(id, text="", tasklist_id=None)` – the hand-over (`text`, plus the hand-overs that came in)
+  goes to the step behind that output. `node.route([id1, id2])` goes on via several outputs at once, like an AND
+  split. An output without an edge, `node.failure(...)`, or a result without an output makes Theron ask the user.
+  A node with exactly one named output may simply return `node.success()`.
+- **Flow & chat:** the cockpit shows which output was taken; the orchestrator sees each output with its target.
+- **AI designer:** knows the outputs (and that they depend on the settings) and writes
+  `{"type": "plugin", "node": "my-plugin/route", "config": {…}, "routes": {"r0": "<key>", "other": "end"}}`.
+
+## Named inputs
+
+A node can also have several labelled inputs – e.g. one for code and one for documentation:
+
+```python
+def merge(node):
+    code = node.inputs["code"]      # the hand-overs that came in at “Code”
+    docs = node.inputs["docs"]
+    return node.success(f"{len(code)} code and {len(docs)} doc hand-overs merged")
+
+ctx.nodes.register("merge", label="Merge", run=merge, outputs="success",
+                   inputs=[{"id": "code", "label": "Code"}, {"id": "docs", "label": "Docs"}], wait="all")
+```
+
+- In the editor, an edge ends at the input port it is dropped on (dropped on the node itself: the first input).
+- `wait="all"`: the node waits until every **connected** input has a hand-over (like a join), then runs once with all
+  of them. `wait="any"`: it runs as soon as something arrives; `node.inputs` then only has hand-overs for the inputs
+  that got one.
+- `node.handovers` still contains all hand-overs together. `inputs` may be a function of the config, too.
+- AI designer: `"input_map": {"<key of the source step>": "<input id>"}`.
 
 ## Fields
 
@@ -69,11 +125,14 @@ What `run(node)` receives:
 | `node.run_id` | `int` | the run (task) |
 | `node.step_name` | `str` | the step's name in this process |
 | `node.tasklist_id` | `int \| None` | a task list handed over by a previous step (task-list node, an import …) |
+| `node.inputs` | `dict[str, list[dict]]` | named inputs: the hand-overs per input id (`{}` for a node with one plain input) |
+| `node.outputs` | `list[dict]` | named outputs of this step: `[{"id", "label"}]` (`[]` for ✔ / ✖ nodes) |
 | `node.ctx` | `ctx` | the plugin's context |
 | `node.started` | `float` | `time.time()` when the node started |
 | `node.progress(text)` | | the status line on the node's card in the cockpit and the flow (max. 140 characters) |
 | `node.success(text="", tasklist_id=None)` | `NodeResult` | ✔ – `text` becomes the hand-over to the next step; `tasklist_id` hands a task list on (e.g. to a loop, which then works through its requirements) |
 | `node.failure(text)` | `NodeResult` | ✖ – `text` explains what went wrong; it goes to the step behind ✖ |
+| `node.route(output, text="", tasklist_id=None)` | `NodeResult` | named outputs: go on via `output` (an id, or a list of ids for several paths); raises `PluginError` for an unknown id |
 
 ## Results
 
@@ -84,7 +143,8 @@ What `run(node)` receives:
 | `node.success(...)` / `node.failure(...)` | ✔ / ✖ as above |
 | a `str` | ✔ with this text |
 | `None` | ✔ with “Done.” |
-| a `dict` `{"ok": bool, "text": str, "tasklist_id": int}` | ✔ or ✖ |
+| a `dict` `{"ok": bool, "text": str, "tasklist_id": int, "output": str \| list}` | ✔ or ✖ – or, with named outputs, the output(s) |
+| `node.route(...)` | named outputs: the chosen output(s) |
 
 On ✔, the incoming hand-overs travel on together with the node's own text – a plugin node in the middle of a chain
 doesn't swallow the results before it. On ✖, only the node's failure text goes on.
@@ -117,3 +177,16 @@ For reference – how a plugin node is stored in a process (`.theron` exports, t
  "plugin_config": {"board": "Sprint", "list": "To do"}, "plugin_outputs": "success_failure",
  "instructions": "", "on_success": "s8b21e07", "on_failure": "ask_user", "max_iterations": 3, "on_max": "ask_user"}
 ```
+
+With named ports, the step keeps the ports it was drawn with and where they lead:
+
+```json
+{"id": "s1c0ffee", "type": "plugin", "plugin_node": "my-plugin/route", "plugin_config": {"routes": "Bug\nFeature"},
+ "plugin_outputs": "ports",
+ "plugin_ports": {"inputs": [], "outputs": [{"id": "r0", "label": "Bug"}, {"id": "r1", "label": "Feature"},
+                                            {"id": "other", "label": "Other"}]},
+ "plugin_routes": {"r0": "s8b21e07", "r1": "s77aa010", "other": "end"},
+ "plugin_input_map": {}, "plugin_wait": "all"}
+```
+
+`plugin_input_map` maps a source step id to the input its edge ends at (`{"s8b21e07": "docs"}`).
