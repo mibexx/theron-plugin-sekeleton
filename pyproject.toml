@@ -1,0 +1,12 @@
+# Development only (tests, packing) – Theron itself reads plugin.toml, not this file.
+[project]
+name = "theron-plugin-skeleton"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+sign = ["cryptography>=42"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

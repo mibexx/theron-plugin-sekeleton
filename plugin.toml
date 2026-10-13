@@ -1,0 +1,60 @@
+# The plugin's manifest – Theron reads it before anything else.
+# Reference: https://theron.mibexx.de/docs-plugins.html#en-pl-manifest
+
+id = "my-plugin"                 # lower case, digits and "-" – unique; rename it for your plugin
+name = "My Plugin"
+version = "0.1.0"
+description = "A starting point: a page, settings, process nodes, an agent tool and a Trello task-list sync."
+author = "Your Name"
+homepage = "https://github.com/you/your-plugin"
+license = "MIT"
+theron_api = 1                   # the plugin API this plugin is written for
+min_theron = "0.14.0"            # the oldest Theron it runs on
+entry = "my_plugin"              # the Python package below with register(ctx)
+
+# What the plugin uses – shown to the user before installing (information, not a sandbox):
+# network, tasklists, runs, agent-tools, ui, files, ai
+permissions = ["network", "tasklists", "runs", "agent-tools", "ui", "ai"]
+
+# Settings – Theron builds the settings dialog from them (Settings → Plugins → Settings …).
+# Types: text, secret, textarea, number, bool, choice (needs options), tasklist, project
+[[settings]]
+key = "trello_key"
+type = "secret"
+label = "Trello API key"
+description = "From https://trello.com/power-ups/admin – leave empty to switch the Trello sync off."
+
+[[settings]]
+key = "trello_token"
+type = "secret"
+label = "Trello token"
+
+[[settings]]
+key = "trello_board"
+type = "text"
+label = "Trello board id"
+description = "The id in the board URL: trello.com/b/<id>/…"
+
+[[settings]]
+key = "sync_tasklist"
+type = "tasklist"
+label = "Task list to sync"
+
+[[settings]]
+key = "sync_minutes"
+type = "number"
+label = "Sync every (minutes)"
+default = 5
+
+[[settings]]
+key = "sync_direction"
+type = "choice"
+label = "Sync direction"
+options = ["both", "theron-to-service", "service-to-theron"]
+default = "both"
+
+[[settings]]
+key = "notify_on_finish"
+type = "bool"
+label = "Notify me when a task finishes"
+default = true

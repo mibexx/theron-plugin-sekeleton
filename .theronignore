@@ -1,0 +1,10 @@
+# Files that stay out of the .theronplugin package (and its signature) – development only.
+tests/
+devkit/
+scripts/
+dist/
+.github/
+.gitignore
+pyproject.toml
+*.theronplugin
+lib/README.md
