@@ -7,7 +7,8 @@ can add to Theron: a page in the navigation, settings, process nodes, a tool for
 **Theron** orchestrates AI agents (Claude Code, OpenCode) in visual processes. Plugins extend it without waiting for a
 new release.
 
-📖 Full documentation: **[theron.mibexx.de/docs-plugins.html](https://theron.mibexx.de/docs-plugins.html)** ·
+📚 Complete API reference: **[docs/](docs/README.md)** ·
+📖 User guide: **[theron.mibexx.de/docs-plugins.html](https://theron.mibexx.de/docs-plugins.html)** ·
 ⬇ Download Theron: **[theron.mibexx.de](https://theron.mibexx.de/#download)**
 
 ---
@@ -25,7 +26,7 @@ new release.
   - [Integrations: syncing task lists](#integrations-syncing-task-lists)
   - [Tools for agents](#tools-for-agents)
   - [Events and schedules](#events-and-schedules)
-- [The plugin API at a glance](#the-plugin-api-at-a-glance)
+- [The plugin API at a glance](#the-plugin-api-at-a-glance) – full reference in [docs/](docs/README.md)
 - [Test without Theron](#test-without-theron)
 - [Pack, sign and install](#pack-sign-and-install)
 - [Security](#security)
@@ -89,7 +90,8 @@ my-plugin/
 │       └── template.py        placeholders for your own service
 ├── i18n/de.json               translations of the plugin's texts (English is the source)
 ├── lib/                       pure-Python dependencies (pip install --target lib …)
-├── devkit/                    a stand-in Theron for tests        ┐
+├── docs/                      the complete plugin API reference  ┐
+├── devkit/                    a stand-in Theron for tests        │
 ├── tests/                     pytest                              │ not packed
 ├── scripts/pack.py            pack and sign without Theron        │ (.theronignore)
 └── .theronignore              what stays out of the package       ┘
@@ -293,7 +295,8 @@ Everything a plugin does goes through `ctx` – the only interface to Theron, st
 | `id`, `name`, `version`, `host`, `language`, `theron_version`, `dir` | environment – `host` is `desktop`, `slave` or `cli` |
 
 Callbacks can be `async` or plain functions; plain ones run in a worker thread and may block.
-Reference with all details: [theron.mibexx.de/docs-plugins.html](https://theron.mibexx.de/docs-plugins.html#en-pl-api).
+Every method with all parameters, return values and errors: [docs/context.md](docs/context.md) – event payloads in
+[docs/events.md](docs/events.md), data shapes in [docs/data.md](docs/data.md).
 
 **Python & dependencies:** plugins ship as source and run on the Python inside Theron (3.12+), the whole standard
 library included. There is no `pip` inside Theron – put pure-Python libraries into `lib/`

@@ -8,3 +8,4 @@ dist/
 pyproject.toml
 *.theronplugin
 lib/README.md
+docs/
