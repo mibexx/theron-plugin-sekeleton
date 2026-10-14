@@ -40,3 +40,9 @@ def test_the_settings_button_checks_trello(ctx, trello):
     assert asyncio.run(ctx.settings.press("Test Trello")) == (True, "Connected as Ada")
     ok, text = asyncio.run(ctx.settings.press("Test Trello", {"trello_token": ""}))
     assert not ok and "first" in text
+
+
+def test_the_check_button_next_to_the_answers(ctx):
+    assert asyncio.run(ctx.press_field_button("ask-chat", "options", 0, {"options": "Yes, No"})) == \
+        ("Check", (True, "2 answers"), "Check")
+    assert asyncio.run(ctx.press_field_button("ask-chat", "options", "Check", {"options": "Yes"}))[1][0] is False

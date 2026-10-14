@@ -52,7 +52,8 @@ class NodeResult:
 
 
 def norm_ports(raw) -> list[dict]:
-    """Like Theron: ["a", "b"] or [{"id", "label"}] → [{"id", "label"}] (unique ids of letters, digits, - and _)."""
+    """Like Theron: ["a", "b"] or [{"id", "label", "color"}] → [{"id", "label"(, "color")}] (unique ids of letters,
+    digits, - and _; color: "success", "error", "neutral", "info" or "#rrggbb")."""
     if isinstance(raw, (str, dict)) or not isinstance(raw, (list, tuple)):
         raise PluginError("ports: a list")
     out, seen = [], set()
@@ -61,7 +62,13 @@ def norm_ports(raw) -> list[dict]:
         if not re.match(r"^[A-Za-z0-9_-]{1,40}$", str(p.get("id") or "")) or p["id"] in seen:
             raise PluginError(f"ports: bad or doubled id {p.get('id')!r}")
         seen.add(p["id"])
-        out.append({"id": p["id"], "label": str(p.get("label") or p["id"])})
+        port = {"id": p["id"], "label": str(p.get("label") or p["id"])}
+        if p.get("color") is not None:
+            if not (p["color"] in ("success", "error", "neutral", "info")
+                    or re.match(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$", str(p["color"]))):
+                raise PluginError(f"ports: '{p['id']}': color is success, error, neutral, info or '#rrggbb'")
+            port["color"] = p["color"]
+        out.append(port)
     return out
 
 
@@ -883,7 +890,7 @@ class FakeContext:
         self.dir = Path(root) if root else Path.cwd()
         self.host = "desktop"
         self.language = language
-        self.theron_version = "0.17.0"
+        self.theron_version = "0.18.0"
         self.api_version = 1
         self.source = f"plugin:{plugin_id}"
         self.settings = _Settings(self, dict(settings or {}))
@@ -995,6 +1002,21 @@ class FakeContext:
         raw = raw(cfg) if callable(raw) else raw
         return [{"value": o["value"], "label": str(o.get("label", o["value"]))} if isinstance(o, dict)
                 else {"value": o, "label": str(o)} for o in raw]
+
+    async def press_field_button(self, kind: str, key: str, button: str | int = 0, config: dict | None = None):
+        """A button next to a node field (``"buttons"``), as the editor runs it: by id, label or position →
+        (label before, what run() returned, label after)."""
+        spec = self.nodes.items[kind]
+        f = next(f for f in spec.get("fields") or [] if f["key"] == key)
+        cfg = {x["key"]: x.get("default") for x in spec.get("fields") or []}
+        cfg.update(config or {})
+        buttons = f.get("buttons") or []
+        b = buttons[button] if isinstance(button, int) else next(
+            x for x in buttons if button in (x.get("id"), x.get("label")))
+        label = lambda: str(b["label"](dict(cfg)) if callable(b["label"]) else b["label"])  # noqa: E731
+        before = label()
+        result = await _call(b["run"], dict(cfg))
+        return before, result, label()
 
     def field_visible(self, kind: str, key: str, config: dict | None = None) -> bool:
         """``show_if``: does the editor show the field for ``config``?"""

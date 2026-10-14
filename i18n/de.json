@@ -57,5 +57,7 @@
   "Enter the Trello key and token first.": "Bitte zuerst Trello-Key und Token eintragen.",
   "Trello says: {status} {text}": "Trello meldet: {status} {text}",
   "Test Trello": "Trello testen",
-  "Checks the key and the token.": "Prüft Key und Token."
+  "Checks the key and the token.": "Prüft Key und Token.",
+  "{n} answers": "{n} Antworten",
+  "Give at least two answers.": "Gib mindestens zwei Antworten an."
 }

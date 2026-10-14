@@ -60,6 +60,11 @@ def register(ctx):
 
 - **Ports:** each output is `{"id", "label"}` (a plain string is both). The id is what `node.route()` takes and what
   the process stores – keep ids stable; the label is what the editor shows next to the port.
+- **Colours:** `"color"` decides how the port, its label and its edges are drawn – `"success"` (green),
+  `"error"` (red, dashed edges), `"neutral"` (amber), `"info"` (cyan) or any hex colour (`"#8a2be2"`). Inputs take
+  it too (default cyan). Without a colour, an output called `error` / `failure` is red and – next to it – a single
+  other output green; everything else is amber. With a function, the colour may follow the settings
+  (`{"id": "done", "color": "error" if config["strict"] else "success"}`). *(Theron ≥ 0.18; older versions ignore it.)*
 - **Dynamic:** with a function, the editor asks it again whenever a field of the node changes and redraws the ports.
   Edges of outputs that still exist stay; the edge of an output that's gone is removed. When a process is opened,
   the ports are worked out again (an update of the plugin may have changed them). The function gets the full config
@@ -91,6 +96,7 @@ ctx.nodes.register("merge", label="Merge", run=merge, outputs="success",
   of them. `wait="any"`: it runs as soon as something arrives; `node.inputs` then only has hand-overs for the inputs
   that got one.
 - `node.handovers` still contains all hand-overs together. `inputs` may be a function of the config, too.
+- Inputs take a `"color"` like outputs: `{"id": "code", "label": "Code", "color": "#ff00aa"}`.
 - AI designer: `"input_map": {"<key of the source step>": "<input id>"}`.
 
 ## Fields
@@ -105,6 +111,7 @@ Each field is a `dict`; the editor shows them in the properties panel, the value
 | `description` | | hint below the input; translated |
 | `default` | | value of a new node (`node.config` always contains every field: default or the user's value) |
 | `options` | for `choice` | the values to choose from: plain values (`["mp3", "wav"]`, shown as they are), `{"value", "label"}` dicts (the label is shown and translated, the value lands in `node.config`) – or a function `options(config) -> list` the editor asks whenever the node is shown, e.g. the voices of an account *(dicts and functions: 0.17)*. A function is called on the UI thread: return a cached list, refresh it in the background (`ctx.spawn`). A value the options don't list (any more) stays selected. |
+| `buttons` | | buttons next to the field: `[{"label": "▶ Sample" or label(config), "run": run(config), "tooltip": "…"}]` – `run` (sync or async) runs in the plugins' loop with the node's current settings (saved or not); return nothing, a text, or `(ok, text)` – shown below the buttons (green / red). A label function is asked again every ~0.7 s, e.g. `"■ Stop" if playing else "▶ Sample"` *(0.18; older versions ignore it)* |
 | `show_if` | | show the field only when other fields match: `{"mode": "fixed"}`, `{"mode": ["a", "b"]}` (one of) or a function `show_if(config) -> bool` *(0.17)* – hidden fields keep their value |
 
 Values: `number` → `int` (or `float`), `bool` → `bool`, `tasklist`/`project` → id or `None`, others → `str`.
@@ -120,7 +127,7 @@ What `run(node)` receives:
 | `node.config` | `dict` | the field values (defaults merged with the user's values) |
 | `node.input` | `str` | everything that reached the node as one text: the hand-overs (“### Hand-over from … – RESULT: …”), the current requirement's briefing when the run works through a task list, and the process's confirmed inputs |
 | `node.handovers` | `list[dict]` | the hand-overs one by one: `{"from": step name, "text": text, "verdict": "success" \| "failure" \| ""}` |
-| `node.task` | `str` | the run's current task (what the orchestrator asked this step to do) |
+| `node.task` | `str` | what the orchestrator asked **this step** to do – often where the user's wishes for the step end up (“speak this sentence”). It is **not** part of `node.input`: a node that works on “the material” should look at both (see the tip below) |
 | `node.instructions` | `str` | the step's instructions from the editor |
 | `node.project` | `dict` | `{"id", "name", "workspace"}` – `workspace` is the folder the agents work in |
 | `node.run_id` | `int` | the run (task) |
@@ -136,6 +143,19 @@ What `run(node)` receives:
 | `node.success(text="", tasklist_id=None)` | `NodeResult` | ✔ – `text` becomes the hand-over to the next step; `tasklist_id` hands a task list on (e.g. to a loop, which then works through its requirements) |
 | `node.failure(text)` | `NodeResult` | ✖ – `text` explains what went wrong; it goes to the step behind ✖ |
 | `node.route(output, text="", tasklist_id=None)` | `NodeResult` | named outputs: go on via `output` (an id, or a list of ids for several paths); raises `PluginError` for an unknown id |
+
+> **Tip – `task` and `input` together.** `node.input` is what the steps before handed over – behind a node that only
+> passes something on (e.g. “Choose voice”) that may be a single line. `node.task` is the orchestrator's assignment
+> for this step. `node.input or node.task` silently drops the assignment as soon as anything was handed over; give
+> both to the AI instead:
+>
+> ```python
+> material = "\n\n".join(x for x in (f"ASSIGNMENT:\n{node.task}" if node.task else "",
+>                                     f"HAND-OVERS:\n{node.input}" if node.input else "") if x)
+> ```
+>
+> And a node in the middle of a chain should hand on what it got (plus its own result), so the steps after it still
+> see the material.
 
 ## Results
 

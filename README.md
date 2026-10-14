@@ -171,7 +171,7 @@ What `node` brings:
 | `node.config` | the field values set in the editor (with defaults) |
 | `node.input` | everything that came in as one text (hand-overs + the current requirement) |
 | `node.handovers` | the hand-overs one by one: `[{"from", "text", "verdict"}]` |
-| `node.task`, `node.instructions` | the run's task, the step's instructions |
+| `node.task`, `node.instructions` | what the orchestrator asked this step to do (not in `node.input` – use both), the step's instructions |
 | `node.project` | `{"id", "name", "workspace"}` – the folder the agents work in |
 | `node.tasklist_id` | a task list handed over by the previous step |
 | `node.progress(text)` | status line on the node's card |

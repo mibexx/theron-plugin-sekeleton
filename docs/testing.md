@@ -44,7 +44,7 @@ def make():
 | `ctx.chat` *(0.17)* | registries | `ctx.chat.render(kind, data)` → the block's HTML; `ctx.chat.format(text)` → the text with your formats; `await ctx.chat.click(href or name, **params)`; `ctx.chat.refreshed` (count); `ctx.chat.messages` (every `node.say`) |
 | `node.ask` / `node.say` *(0.17)* | answers from `ctx.chat.answers` (a list, one by one, or `fn(question, options)`) | after `run_node`: `ctx.last_node.asked`, `ctx.last_node.said`, `ctx.last_node.progress_log` |
 | `ctx.settings.add_button` *(0.17)* | recorded | `await ctx.settings.press("Test", values={...})` → what the button returns |
-| node fields *(0.17)* | | `ctx.field_options(kind, key, config)` (a function is asked), `ctx.field_visible(kind, key, config)` (`show_if`) |
+| node fields *(0.17)* | | `ctx.field_options(kind, key, config)` (a function is asked), `ctx.field_visible(kind, key, config)` (`show_if`), `await ctx.press_field_button(kind, key, button, config)` → (label before, result, label after) *(0.18)* |
 | `ctx.log`, `ctx.notify` | recorded | `ctx.log.lines`, `ctx.notifications` |
 
 ## Examples

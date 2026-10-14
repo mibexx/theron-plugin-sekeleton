@@ -69,7 +69,11 @@ def register(ctx):
         ai_hint="Ask the user a question with fixed answers in the middle of a process",
         fields=[{"key": "question", "type": "text", "label": ctx.tr("Question")},
                 {"key": "options", "type": "text", "label": ctx.tr("Answers (comma separated)"),
-                 "default": "Yes, No"},
+                 "default": "Yes, No",
+                 # a button next to the field (Theron ≥ 0.18): runs with the node's current settings, the text shows
+                 "buttons": [{"label": ctx.tr("Check"), "run": lambda cfg: (
+                     (True, ctx.tr("{n} answers", n=len(answers(cfg)))) if len(answers(cfg)) > 1
+                     else (False, ctx.tr("Give at least two answers.")))}]},
                 {"key": "mode", "type": "choice", "label": ctx.tr("Mode"), "default": "ask",
                  "options": [{"value": "ask", "label": ctx.tr("Ask every time")},
                              {"value": "fixed", "label": ctx.tr("Always the same answer")}]},
