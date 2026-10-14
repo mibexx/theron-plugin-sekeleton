@@ -382,8 +382,8 @@ class _Ui:
                                   "tooltip": tooltip, "style": style})
 
     # dialogs: put the answers your test wants in ``answers`` (popped in order); ``dialogs`` records what was asked
-    def ask_text(self, title, text, default=""):
-        self.dialogs.append(("text", title, text))
+    def ask_text(self, title, text, default="", suggestions=None):
+        self.dialogs.append(("text", title, text) + ((list(suggestions),) if suggestions else ()))
         return self.answers.pop(0) if self.answers else None
 
     def ask_choice(self, title, text, options):
@@ -890,7 +890,7 @@ class FakeContext:
         self.dir = Path(root) if root else Path.cwd()
         self.host = "desktop"
         self.language = language
-        self.theron_version = "0.18.0"
+        self.theron_version = "0.19.1"
         self.api_version = 1
         self.source = f"plugin:{plugin_id}"
         self.settings = _Settings(self, dict(settings or {}))

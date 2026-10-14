@@ -207,7 +207,7 @@ def register(ctx):
 - `run(context)` gets the same context as panels; in the chat also `context["input"]` – the text typed so far.
 - `style`: `ghost`, `primary` or `danger`.
 
-**Small dialogs** (UI thread): `ctx.ui.ask_text(title, text, default="")` → str or None,
+**Small dialogs** (UI thread): `ctx.ui.ask_text(title, text, default="", suggestions=None)` → str or None (`suggestions`: a list to pick from, typing stays possible – 0.19.1),
 `ctx.ui.ask_choice(title, text, options)` → the chosen option or None, `ctx.ui.message(title, text, level)`.
 **The chat input:** `ctx.ui.chat_input(page="cockpit")`, `ctx.ui.set_chat_input(text, page="cockpit", append=False)`.
 

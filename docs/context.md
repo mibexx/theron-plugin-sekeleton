@@ -160,7 +160,7 @@ Desktop only – check `ctx.ui.available` first. Full guide: [Pages & settings U
 | `ctx.ui.add_action(page, label, run, *, id="", icon="", tooltip="", style="ghost", place="top")` | a button on a page – `place`: `top`, `chat`, `new`, `lists`, `items`, `sidebar`; `label` text or `label(context)` → text / None (hidden); `run(context)` on the UI thread – [manual](manual.md#4-extend-buttons-and-forms) *(0.16)* |
 | `ctx.ui.refresh_actions()` | ask the `label` functions again *(0.16)* |
 | `ctx.ui.add_form_button(form, label, run, *, id="", icon="", tooltip="", style="ghost")` | a button in the form of `agent`, `process` or `project`; `run(form)` *(0.16)* |
-| `ctx.ui.ask_text(title, text, default="")` / `ask_choice(title, text, options)` / `message(title, text, level="info")` | small modal dialogs – UI thread only; None when cancelled *(0.16)* |
+| `ctx.ui.ask_text(title, text, default="", suggestions=None)` / `ask_choice(title, text, options)` / `message(title, text, level="info")` | small modal dialogs in Theron's look – UI thread only; None when cancelled *(0.16)*. `suggestions`: a list to pick from, typing something else stays possible *(0.19.1 – older versions raise TypeError, so fall back)* |
 | `ctx.ui.chat_input(page="cockpit")` / `set_chat_input(text, page="cockpit", append=False)` | read / fill the chat input of the cockpit or the THERON page *(0.16)* |
 
 ### `view` (panels and plugin windows)
