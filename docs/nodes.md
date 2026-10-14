@@ -104,7 +104,8 @@ Each field is a `dict`; the editor shows them in the properties panel, the value
 | `label` | | label in the panel (default: the key); translated with the plugin's i18n |
 | `description` | | hint below the input; translated |
 | `default` | | value of a new node (`node.config` always contains every field: default or the user's value) |
-| `options` | for `choice` | the values to choose from |
+| `options` | for `choice` | the values to choose from: plain values (`["mp3", "wav"]`, shown as they are), `{"value", "label"}` dicts (the label is shown and translated, the value lands in `node.config`) – or a function `options(config) -> list` the editor asks whenever the node is shown, e.g. the voices of an account *(dicts and functions: 0.17)*. A function is called on the UI thread: return a cached list, refresh it in the background (`ctx.spawn`). A value the options don't list (any more) stays selected. |
+| `show_if` | | show the field only when other fields match: `{"mode": "fixed"}`, `{"mode": ["a", "b"]}` (one of) or a function `show_if(config) -> bool` *(0.17)* – hidden fields keep their value |
 
 Values: `number` → `int` (or `float`), `bool` → `bool`, `tasklist`/`project` → id or `None`, others → `str`.
 Besides the fields, every plugin node has a **name** (shown on the node) and **instructions** (free text, arrives as
@@ -130,6 +131,8 @@ What `run(node)` receives:
 | `node.ctx` | `ctx` | the plugin's context |
 | `node.started` | `float` | `time.time()` when the node started |
 | `node.progress(text)` | | the status line on the node's card in the cockpit and the flow (max. 140 characters) |
+| `await node.ask(question, options=None, *, recommended=None, details="")` | `str` | ask the user in the chat and wait for the answer – the run shows ✋ and every answer channel works (app, web, Telegram …). `options`: answer buttons (the user may still type something else), `recommended`: index of the suggested option, `details`: Markdown below the question (chat formats of plugins apply). The question is prefixed with the step's name. *(0.17)* |
+| `node.say(text="", *, kind="", data=None)` | | a message of the node in the chat: Markdown `text` – or a block of the plugin's own `kind` drawn by `ctx.chat.add_renderer(kind, …)` from `data` (JSON). With a block, `text` is the fallback where it can't be drawn (web, Telegram, plugin off). *(0.17)* |
 | `node.success(text="", tasklist_id=None)` | `NodeResult` | ✔ – `text` becomes the hand-over to the next step; `tasklist_id` hands a task list on (e.g. to a loop, which then works through its requirements) |
 | `node.failure(text)` | `NodeResult` | ✖ – `text` explains what went wrong; it goes to the step behind ✖ |
 | `node.route(output, text="", tasklist_id=None)` | `NodeResult` | named outputs: go on via `output` (an id, or a list of ids for several paths); raises `PluginError` for an unknown id |

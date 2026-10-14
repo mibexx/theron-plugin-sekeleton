@@ -3,7 +3,7 @@ import asyncio
 
 
 def test_registers_nodes_tools_jobs_and_events(ctx):
-    assert set(ctx.nodes.items) == {"summarize", "check", "trello-import", "route", "merge"}
+    assert set(ctx.nodes.items) == {"summarize", "check", "trello-import", "route", "merge", "ask-chat"}
     assert set(ctx.tools.items) == {"list_tasklists", "add_requirement"}
     assert ctx.jobs and ctx.jobs[0]["every"] == 5 * 60
     assert {name for name, _ in ctx.events.listeners} == {"run.finished", "requirement.saved", "settings.changed",

@@ -41,6 +41,10 @@ def make():
 | `ctx.ai` | returns `ctx.ai.answer(prompt, system, model)` | set `ctx.ai.answer = lambda p, s, m: "…"`; `ctx.ai.prompts` |
 | `ctx.http` | `FakeHttp` – answers from routes | `ctx.http.route("GET", "/cards", data_or_fn, status=200)`; `ctx.http.requests` |
 | `ctx.ui` | `available = False`, records pages | set `ctx.ui.available = True` before `load_plugin` to test page registration (needs PySide6) |
+| `ctx.chat` *(0.17)* | registries | `ctx.chat.render(kind, data)` → the block's HTML; `ctx.chat.format(text)` → the text with your formats; `await ctx.chat.click(href or name, **params)`; `ctx.chat.refreshed` (count); `ctx.chat.messages` (every `node.say`) |
+| `node.ask` / `node.say` *(0.17)* | answers from `ctx.chat.answers` (a list, one by one, or `fn(question, options)`) | after `run_node`: `ctx.last_node.asked`, `ctx.last_node.said`, `ctx.last_node.progress_log` |
+| `ctx.settings.add_button` *(0.17)* | recorded | `await ctx.settings.press("Test", values={...})` → what the button returns |
+| node fields *(0.17)* | | `ctx.field_options(kind, key, config)` (a function is asked), `ctx.field_visible(kind, key, config)` (`show_if`) |
 | `ctx.log`, `ctx.notify` | recorded | `ctx.log.lines`, `ctx.notifications` |
 
 ## Examples

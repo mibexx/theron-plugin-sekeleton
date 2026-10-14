@@ -46,6 +46,7 @@ new release.
 | **Navigation entry with UI** | A page of its own in Theron's sidebar (a PySide6 widget). | [`my_plugin/pages.py`](my_plugin/pages.py) |
 | **Windows on Theron's pages** | Panels next to or below any page (cockpit, THERON, projects, processes, agents, tasks, databases) that follow what the page shows, and windows of their own. | [`my_plugin/ui_monitor.py`](my_plugin/ui_monitor.py), [`my_plugin/pages.py`](my_plugin/pages.py) |
 | **Buttons & forms** | Buttons in a page's tool bar, next to “Send” in the chat, next to “+ New …”, on the task-list page, in the sidebar; extra fields and buttons in the agent, process and project forms; small dialogs. | [`my_plugin/extend.py`](my_plugin/extend.py) |
+| **The chat** | Own formatting for any chat message, own blocks (players, documents, diagrams …) with clickable buttons, nodes that ask the user in the chat, buttons in the settings dialog (“Test”), node fields with live options and `show_if`. | [`my_plugin/chat.py`](my_plugin/chat.py) |
 | **Running agents & logs** | Read the tasks, the agents working right now and their logs – live; ask a working agent on the side; answer, stop, restart. | [`my_plugin/monitor.py`](my_plugin/monitor.py) |
 | **Settings** | Declared in `plugin.toml`; Theron builds the dialog. Optional custom UI below it. | [`plugin.toml`](plugin.toml), [`my_plugin/settings_page.py`](my_plugin/settings_page.py) |
 | **Process nodes** | New nodes in the process editor – with fields, ✔ / ✖ or named outputs (a switch whose outputs follow its settings), named inputs, used by Theron's AI process designer. | [`my_plugin/nodes.py`](my_plugin/nodes.py) |
@@ -63,7 +64,7 @@ schedules work everywhere a process runs.
 
 ## Quick start
 
-You need **Theron 0.14.0 or newer** and Python 3.11+ for development.
+You need **Theron 0.17.0 or newer** for this skeleton as it is (it uses every part of the API – a plugin that needs less can lower `min_theron`, down to 0.14.0) and Python 3.11+ for development.
 
 ```bash
 git clone https://github.com/mibexx/theron-plugin-sekeleton my-plugin
@@ -92,6 +93,7 @@ my-plugin/
 │   ├── nodes.py               process nodes
 │   ├── pages.py               a navigation page and a panel on the task-list page (desktop only)
 │   ├── extend.py              buttons on Theron's pages, form fields and form buttons
+│   ├── chat.py                chat formats and blocks with buttons, a node that asks in the chat, a settings button
 │   ├── monitor.py             watching the running agents and their logs – and reacting
 │   ├── ui_monitor.py          the “Agents at work” panel and a live-log window (desktop only)
 │   ├── settings_page.py       extra settings UI (desktop only)

@@ -2,7 +2,7 @@
 
 Step-by-step guides for the things plugins do most. Each chapter starts from an empty `register(ctx)` and ends with
 working code; the complete reference of every call is in [context.md](context.md). Needs Theron **0.16.0** or newer
-for chapters 3, 8 and 9 (`min_theron = "0.16.0"` in `plugin.toml`).
+for chapters 3, 8 and 9, **0.17.0** for chapter 10 (`min_theron` in `plugin.toml`).
 
 1. [Add a page](#1-add-a-page)
 2. [Add a process node](#2-add-a-process-node)
@@ -13,6 +13,7 @@ for chapters 3, 8 and 9 (`min_theron = "0.16.0"` in `plugin.toml`).
 7. [Emit events of your own](#7-emit-events-of-your-own)
 8. [React to transactions](#8-react-to-transactions)
 9. [Read the running agents and their logs](#9-read-the-running-agents-and-their-logs)
+10. [Extend the chat](#10-extend-the-chat)
 
 Two rules apply everywhere:
 
@@ -451,3 +452,102 @@ reports every few minutes); agents of other engines answer with a summary of the
 
 The skeleton's `monitor.py` and `ui_monitor.py` are a complete example: a watch that notifies on errors, a check for
 agents that work too long, a panel next to the cockpit and a live log window.
+
+---
+
+## 10. Extend the chat
+
+Theron's chat only offers the hooks – what appears in it is up to the plugin: a player for audio, a document preview,
+a diagram, buttons. Four pieces, all in `ctx.chat` (`my_plugin/chat.py` uses each of them):
+
+| You want … | Use |
+|---|---|
+| text in **any** message to look different (a colour code, a file path, a ticket number) | `ctx.chat.add_format(pattern, render)` |
+| a node to post something of its own (a list with buttons, a chart, a player) | `node.say(text, kind=..., data=...)` + `ctx.chat.add_renderer(kind, render)` |
+| something clickable in your rich text | `ctx.chat.link(name, text, **params)` + `ctx.chat.on_link(name, fn)` |
+| the chat to show a new state (▶ → ■, a new count) | `ctx.chat.refresh()` |
+| a node to ask the user and wait | `await node.ask(question, options)` |
+
+**Formatting.** `render(match)` returns Qt rich text for the matched text, or `None` to leave it. It runs for every
+message whenever a chat is drawn – keep it quick; escape what comes from the match:
+
+```python
+import html, re
+from pathlib import Path
+
+AUDIO = re.compile(r"(?<![\w/])(/[^\s<>\"']+?\.(?:mp3|wav))\b")
+
+def audio_path(m):
+    path = m.group(1)
+    if not Path(path).is_file():
+        return None                                   # not there: plain text
+    return html.escape(path) + " " + ctx.chat.link("play", "▶", src=path)
+
+ctx.chat.add_format(AUDIO, audio_path)
+```
+
+**Blocks.** A node posts `node.say(text, kind="chart", data={...})`; Theron stores the event with the run and asks
+your renderer every time the chat is drawn (also after a restart). `text` is the fallback where the block can't be
+drawn – the web, Telegram, or when the plugin is switched off. Without `kind`, `node.say("**Markdown**")` is a plain
+message.
+
+```python
+ctx.chat.add_renderer("chart", lambda data: f'<p><b>{html.escape(data["title"])}</b></p>'
+                                            f'<img src="{html.escape(data["png"])}" width="440">')
+
+async def plot(node):
+    png = await render_chart(node.input, ctx.data_dir / f"chart-{node.run_id}.png")
+    node.say("A chart of the numbers: " + str(png), kind="chart", data={"title": "Sales", "png": str(png)})
+    return node.success(str(png))
+```
+
+**Buttons and clicks.** `ctx.chat.link(...)` makes an `<a href="theron-plugin://<plugin>/<name>?…">`; a click calls
+your `on_link` handler with the params (in the background, not on the UI thread). Change your state, then
+`ctx.chat.refresh()` – renderers and formats are asked again:
+
+```python
+def play(params):
+    player.toggle(params["src"])     # your own player – e.g. afplay / winsound / ffplay via subprocess
+    ctx.chat.refresh()               # ▶ becomes ■
+
+ctx.chat.on_link("play", play)
+```
+
+**Asking in the chat.** `await node.ask(question, options=None, recommended=None, details="")` shows the question
+like Theron's own (✋ on the run, answer buttons, web and Telegram work too) and returns the answer. Check it and ask
+again when it doesn't fit:
+
+```python
+async def pick(node):
+    voices = await load_voices()
+    node.say("\n".join(f"{i}. {v}" for i, v in enumerate(voices, 1)), kind="voices", data={"voices": voices})
+    for _ in range(3):
+        answer = await node.ask("Which voice? (number or name)")
+        if answer.isdigit() and 1 <= int(answer) <= len(voices):
+            return node.success(voices[int(answer) - 1])
+    return node.failure("No voice chosen.")
+```
+
+**Node fields that follow the node.** `options` may be a function of the node's settings, and `show_if` hides a field
+until another one has a value – e.g. a voice list only for the mode “fixed”:
+
+```python
+fields=[{"key": "mode", "type": "choice", "default": "manual",
+         "options": [{"value": "manual", "label": "Manual"}, {"value": "fixed", "label": "Fixed"}]},
+        {"key": "voice", "type": "choice", "show_if": {"mode": "fixed"},
+         "options": lambda config: [{"value": v["id"], "label": v["name"]} for v in cached_voices()]}]
+```
+
+The function runs on the UI thread – return what you have cached and refresh the cache in the background.
+
+**Buttons in the settings.** `ctx.settings.add_button("Test", run)` puts a button into the plugin's settings dialog;
+`run(values)` gets what the dialog shows right now (saved or not), runs in the background and returns a text or
+`(ok, text)` – ✔ green or ✖ red below the buttons.
+
+**Testing.** The devkit renders and clicks like the chat: `ctx.chat.render(kind, data)`, `ctx.chat.format(text)`,
+`await ctx.chat.click(href)`, answers for `node.ask` from `ctx.chat.answers` – see [testing.md](testing.md).
+
+A complete plugin built on all of this: **ElevenLabs** in the [plugin catalog](https://theron.mibexx.de/plugins.html)
+– voices listed with ▶ samples in the chat, a voice picked by number or in your own words, the generated audio files
+playable right there.
+

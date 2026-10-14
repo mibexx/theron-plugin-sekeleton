@@ -94,9 +94,30 @@ class FakeNodeRun:
         self.step_name = "step"
         self.tasklist_id = tasklist_id
         self.progress_log: list[str] = []
+        self.said: list[dict] = []      # node.say(...) – {"text", "kind", "data"}
+        self.asked: list[dict] = []     # node.ask(...) – {"question", "options", "recommended", "details"}
 
     def progress(self, text):
         self.progress_log.append(text)
+
+    async def ask(self, question, options=None, *, recommended=None, details=""):
+        """The user's answer comes from ``ctx.chat.answers`` (a list, taken one by one, or a function
+        ``answer(question, options) -> str``)."""
+        self.asked.append({"question": question, "options": list(options or []), "recommended": recommended,
+                           "details": details})
+        answers = self.ctx.chat.answers
+        if callable(answers):
+            return str(answers(question, list(options or [])))
+        if not answers:
+            raise PluginError(f"node.ask({question!r}): no answer left in ctx.chat.answers")
+        return str(answers.pop(0))
+
+    def say(self, text="", *, kind="", data=None):
+        if data is not None:
+            json.dumps(data)   # Theron stores it with the run: JSON only
+        msg = {"text": str(text or ""), "kind": kind, "data": data}
+        self.said.append(msg)
+        self.ctx.chat.messages.append(msg)
 
     def success(self, text="", tasklist_id=None):
         return NodeResult(True, text, tasklist_id)
@@ -201,6 +222,18 @@ class _Settings:
     def on_change(self, fn):
         self._ctx.events.on("settings.changed", fn)
         return fn
+
+    def add_button(self, label, run, *, id="", tooltip=""):
+        self.buttons = [b for b in getattr(self, "buttons", []) if b["id"] != (id or label)]
+        self.buttons.append({"id": id or label, "label": label, "run": run, "tooltip": tooltip})
+
+    async def press(self, label_or_id, values=None):
+        """Click a settings button like the dialog does – ``values``: what is in the dialog (default: the
+        settings). Returns what the button returns: a text, (ok, text) or None."""
+        button = next((b for b in getattr(self, "buttons", []) if label_or_id in (b["id"], b["label"])), None)
+        if button is None:
+            raise PluginError(f"no settings button {label_or_id!r}")
+        return await _call(button["run"], {**self._values, **(values or {})})
 
 
 class _Storage:
@@ -373,6 +406,62 @@ class _Ui:
 
     def open_url(self, url):
         self.opened.append(url)
+
+
+class _Chat:
+    """``ctx.chat`` – blocks, formats, links; plus what a test needs: ``render``, ``format``, ``click``."""
+
+    def __init__(self, ctx):
+        self._ctx = ctx
+        self.renderers: dict[str, Callable] = {}
+        self.formats: list[tuple[Any, Callable]] = []
+        self.links: dict[str, Callable] = {}
+        self.messages: list[dict] = []    # every node.say of every node
+        self.answers: list | Callable = []
+        self.refreshed = 0
+
+    def add_renderer(self, kind, render):
+        if not re.match(r"^[A-Za-z0-9_.-]{1,40}$", kind or ""):
+            raise PluginError(f"chat block kind {kind!r}")
+        self.renderers[kind] = render
+
+    def add_format(self, pattern, render):
+        self.formats.append((re.compile(pattern) if isinstance(pattern, str) else pattern, render))
+
+    def on_link(self, name, fn):
+        self.links[name] = fn
+
+    def link(self, name, text, **params):
+        import html as _html
+        import urllib.parse
+        q = urllib.parse.urlencode({k: str(v) for k, v in params.items()})
+        href = f"theron-plugin://{self._ctx.id}/{urllib.parse.quote(name)}" + (f"?{q}" if q else "")
+        return f'<a href="{_html.escape(href, quote=True)}">{_html.escape(text)}</a>'
+
+    def refresh(self):
+        self.refreshed += 1
+
+    # ---------------------------------------------------------------- test helpers
+    def render(self, kind, data):
+        """The rich text of a block, as Theron's chat gets it."""
+        return self.renderers[kind](data)
+
+    def format(self, text):
+        """``text`` with the plugin's formats applied (the rest stays as it is – Theron escapes it)."""
+        for rx, render in self.formats:
+            text = rx.sub(lambda m, render=render: (lambda out: m.group(0) if out is None else out)(render(m)), text)
+        return text
+
+    async def click(self, href_or_name, **params):
+        """Click a link: its href (``theron-plugin://…``) or the name of an ``on_link`` handler with params."""
+        import urllib.parse
+        if href_or_name.startswith("theron-plugin://"):
+            parts = urllib.parse.urlparse(href_or_name)
+            name = urllib.parse.unquote(parts.path.lstrip("/"))
+            params = {k: v[-1] for k, v in urllib.parse.parse_qs(parts.query).items()}
+        else:
+            name = href_or_name
+        return await _call(self.links[name], {k: str(v) for k, v in params.items()})
 
 
 class _Tasklists:
@@ -794,7 +883,7 @@ class FakeContext:
         self.dir = Path(root) if root else Path.cwd()
         self.host = "desktop"
         self.language = language
-        self.theron_version = "0.14.0"
+        self.theron_version = "0.17.0"
         self.api_version = 1
         self.source = f"plugin:{plugin_id}"
         self.settings = _Settings(self, dict(settings or {}))
@@ -807,6 +896,7 @@ class FakeContext:
         self.processes = _Processes()
         self.agents = _Agents()
         self.ui = _Ui(self)
+        self.chat = _Chat(self)
         self.tasklists = _Tasklists(self)
         self.runs = _Runs()
         self.ai = _Ai()
@@ -883,6 +973,7 @@ class FakeContext:
         if unknown:
             raise PluginError(f"{kind} has no input(s) {sorted(unknown)}")
         node = FakeNodeRun(self, cfg, handovers or [], outputs=ports["outputs"], **kw)
+        self.last_node = node   # its said / asked / progress_log
         result = await _call(spec["run"], node)
         if isinstance(result, dict):
             out = result.get("output", result.get("outputs")) or []
@@ -893,6 +984,30 @@ class FakeContext:
                 raise PluginError(f"{kind} has named outputs – return node.route(...)")
             return result
         return NodeResult(True, "" if result is None else str(result))
+
+    def field_options(self, kind: str, key: str, config: dict | None = None) -> list[dict]:
+        """A choice field's options as the editor shows them – [{"value", "label"}] (a function is asked)."""
+        spec = self.nodes.items[kind]
+        f = next(f for f in spec.get("fields") or [] if f["key"] == key)
+        cfg = {x["key"]: x.get("default") for x in spec.get("fields") or []}
+        cfg.update(config or {})
+        raw = f.get("options") or []
+        raw = raw(cfg) if callable(raw) else raw
+        return [{"value": o["value"], "label": str(o.get("label", o["value"]))} if isinstance(o, dict)
+                else {"value": o, "label": str(o)} for o in raw]
+
+    def field_visible(self, kind: str, key: str, config: dict | None = None) -> bool:
+        """``show_if``: does the editor show the field for ``config``?"""
+        spec = self.nodes.items[kind]
+        f = next(f for f in spec.get("fields") or [] if f["key"] == key)
+        cfg = {x["key"]: x.get("default") for x in spec.get("fields") or []}
+        cfg.update(config or {})
+        cond = f.get("show_if")
+        if cond is None:
+            return True
+        if callable(cond):
+            return bool(cond(cfg))
+        return all(cfg.get(k) in v if isinstance(v, (list, tuple, set)) else cfg.get(k) == v for k, v in cond.items())
 
     def node_ports(self, kind: str, config: dict | None = None) -> dict:
         """The ports of a registered node for ``config`` – {"inputs": [...], "outputs": [...]}."""

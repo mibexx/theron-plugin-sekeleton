@@ -75,7 +75,22 @@ Everything else – schedules, events, `ctx.spawn`, nodes – runs elsewhere. Fr
 ## Settings UI
 
 Most plugins need no code: the `[[settings]]` in `plugin.toml` become a dialog (Settings → Plugins → *Settings …*).
-For more – a “Test connection” button, an OAuth login, a preview – add a widget below the generated fields:
+A **button** in that dialog – “Test”, “Reload voices” – needs no widget either *(0.17)*:
+
+```python
+async def test(values):          # what the dialog shows right now – saved or not
+    if not values.get("api_key"):
+        return False, "Enter the API key first."
+    resp = await ctx.http.get("https://api.example.com/me", headers={"Authorization": values["api_key"]})
+    return (True, "Connected") if resp.ok else (False, f"HTTP {resp.status}: {resp.text[:100]}")
+
+ctx.settings.add_button("Test", test, tooltip="Checks the key")
+```
+
+It runs in the background (the dialog stays usable); the result shows below the buttons – `(True, text)` green with
+✔, `(False, text)` red with ✖, a plain text neutral; an exception shows as ✖ and goes to the plugin's log.
+
+For more – an OAuth login, a preview – add a widget below the generated fields:
 
 ```python
 class ConnectionTest(QWidget):

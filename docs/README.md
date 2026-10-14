@@ -1,10 +1,10 @@
 # Theron Plugin Documentation
 
-The complete reference of Theron's plugin interface – **plugin API v1** (`theron_api = 1`, Theron 0.14.0 and newer; panels, windows, buttons, form fields and `ctx.runs` reading need 0.16.0).
+The complete reference of Theron's plugin interface – **plugin API v1** (`theron_api = 1`, Theron 0.14.0 and newer; panels, windows, buttons, form fields and `ctx.runs` reading need 0.16.0; the chat (`ctx.chat`, `node.ask`, `node.say`), settings buttons and dynamic node fields need 0.17.0).
 
 | Document | What's in it |
 |---|---|
-| [**Manual**](manual.md) | **Step by step: pages, nodes, windows on pages, buttons and forms, task lists, events, own events, transactions, running agents and logs** |
+| [**Manual**](manual.md) | **Step by step: pages, nodes, windows on pages, buttons and forms, task lists, events, own events, transactions, running agents and logs, the chat** |
 | [Getting started](getting-started.md) | From zero to an installed plugin in five minutes |
 | [Concepts & lifecycle](lifecycle.md) | How Theron finds, loads, starts and stops plugins; hosts; restarts; failures |
 | [plugin.toml](manifest.md) | Every field of the manifest, settings types, permissions, compatibility |

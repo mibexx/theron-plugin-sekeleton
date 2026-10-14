@@ -9,7 +9,7 @@ author = "Your Name"
 homepage = "https://github.com/you/your-plugin"
 license = "MIT"
 theron_api = 1                   # the plugin API this plugin is written for
-min_theron = "0.16.0"            # the oldest Theron it runs on (panels, buttons, form fields, ctx.runs reading)
+min_theron = "0.17.0"            # the oldest Theron it runs on (chat formats / blocks / links, node.ask, settings buttons)
 entry = "my_plugin"              # the Python package below with register(ctx)
 
 # What the plugin uses – shown to the user before installing (information, not a sandbox):

@@ -42,5 +42,20 @@
   "Merge code & docs": "Code & Doku zusammenführen",
   "Code": "Code",
   "Docs": "Doku",
-  "Waits for both inputs and hands on one combined report.": "Wartet auf beide Eingänge und gibt einen gemeinsamen Bericht weiter."
+  "Waits for both inputs and hands on one combined report.": "Wartet auf beide Eingänge und gibt einen gemeinsamen Bericht weiter.",
+  "How shall we go on?": "Wie soll es weitergehen?",
+  "Answer: **{answer}**": "Antwort: **{answer}**",
+  "The user answered: {answer}": "Der Nutzer hat geantwortet: {answer}",
+  "Ask in the chat": "Im Chat fragen",
+  "Asks the user a question in the chat and hands the answer on.": "Stellt dem Nutzer im Chat eine Frage und gibt die Antwort weiter.",
+  "Question": "Frage",
+  "Answers (comma separated)": "Antworten (durch Komma getrennt)",
+  "Mode": "Modus",
+  "Ask every time": "Jedes Mal fragen",
+  "Always the same answer": "Immer dieselbe Antwort",
+  "Answer": "Antwort",
+  "Enter the Trello key and token first.": "Bitte zuerst Trello-Key und Token eintragen.",
+  "Trello says: {status} {text}": "Trello meldet: {status} {text}",
+  "Test Trello": "Trello testen",
+  "Checks the key and the token.": "Prüft Key und Token."
 }

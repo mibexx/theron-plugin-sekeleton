@@ -5,7 +5,7 @@ the plugin API (https://theron.mibexx.de/docs-plugins.html#en-pl-api). Delete wh
 below is independent of the others.
 """
 
-from . import events, extend, hooks, monitor, nodes, tools
+from . import chat, events, extend, hooks, monitor, nodes, tools
 from .integrations.sync import TaskListSync
 from .integrations.trello import TrelloAdapter
 
@@ -32,7 +32,10 @@ def register(ctx):
     # 6. Extending Theron's own pages: buttons (tool bar, chat, “+ New”, sidebar), form fields and buttons (extend.py)
     extend.register(ctx)
 
-    # 7. UI: a navigation entry, a panel on Theron's pages and extra settings – desktop app only
+    # 7. The chat: own formatting and blocks with buttons, a node that asks in the chat, a settings button (chat.py)
+    chat.register(ctx)
+
+    # 8. UI: a navigation entry, a panel on Theron's pages and extra settings – desktop app only
     if ctx.ui.available:   # PySide6 exists only there (not on a slave / in the headless Docker image)
         from . import pages, settings_page
         ctx.ui.add_page(ctx.tr("My Plugin"), lambda c: pages.SyncPage(c, sync), icon="⬢", id="sync")

@@ -56,11 +56,17 @@ defaults.
 | `ctx.settings.update({key: value, …})` | `None` | store several values; emits `settings.changed` to this plugin |
 | `ctx.settings.missing()` | `list[str]` | labels of `required` settings that are still empty |
 | `ctx.settings.on_change(fn)` | `fn` | shorthand for `ctx.events.on("settings.changed", fn)`; usable as a decorator |
+| `ctx.settings.add_button(label, run, *, id="", tooltip="")` | `None` | a button in the plugin's settings dialog, e.g. “Test”: `run(values)` gets what the dialog shows right now (saved or not), runs in the background and returns a text, `(ok, text)` (✔ green / ✖ red, shown below the buttons) or `None` *(0.17)* |
 
 A plugin may store values that aren't declared in the manifest (e.g. an OAuth refresh token); they just don't appear
 in the dialog.
 
 ```python
+async def test(values):                     # Settings → Plugins → My Plugin → “Test”
+    resp = await ctx.http.get("https://api.example.com/me", headers={"Authorization": f"Bearer {values['token']}"})
+    return (True, "Connected") if resp.ok else (False, f"HTTP {resp.status}")
+ctx.settings.add_button("Test", test)
+
 if ctx.settings.missing():
     ctx.log(f"not configured yet: {', '.join(ctx.settings.missing())}")
 
@@ -167,6 +173,36 @@ Desktop only – check `ctx.ui.available` first. Full guide: [Pages & settings U
 
 `form.kind`, `form.id` (None: new), `form.data` (stored), `form.values()` (as edited, with `plugin_fields`),
 `form.get(key, default=None)` / `form.set(key, value)` (the plugin's own fields), `form.save()`, `form.reload()`.
+
+---
+
+## `ctx.chat` *(0.17)*
+
+Theron's chat (cockpit, THERON, sub-processes, the concept window) – Theron only offers the hooks, **what a plugin
+shows is up to it**: players, documents, diagrams, buttons … Desktop app; elsewhere the calls are harmless and the
+text fallbacks are shown. Guide: [manual, chapter 10](manual.md#10-extend-the-chat).
+
+| Method | Description |
+|---|---|
+| `add_format(pattern, render)` | wherever the regex `pattern` (string or compiled) matches the text of **any** chat message (Theron, agents, the user, nodes), `render(match)` puts rich text in its place – `None` leaves the text as it is. Matches are taken out before Theron's Markdown runs: the result is not escaped, escape what you take from the match (`html.escape`). |
+| `add_renderer(kind, render)` | `render(data) -> str`: rich text for the blocks of type `kind` this plugin posts with `node.say(kind=..., data=...)`. Called on the UI thread whenever the chat is drawn – keep it quick, no network. `kind`: 1–40 letters, digits, `.`, `-`, `_`. |
+| `link(name, text, **params) -> str` | HTML of a clickable link (`<a href="theron-plugin://<plugin>/<name>?…">`) for your rich text; `params` become strings |
+| `on_link(name, fn)` | what a click on `link(name, …)` does: `fn(params)` – async or plain, runs in the plugins' background loop (not the UI thread) |
+| `refresh()` | draw the open chats again – after a click or a background change altered what a renderer or format shows (▶ → ■, a vote count …); any thread |
+
+Rich text is Qt's HTML subset: `<b> <i> <u> <span style> <p> <br> <ul>/<li> <table>/<tr>/<td> <a href>
+<img src="/path/file.png" width=…>` and inline CSS for colours, fonts, padding and borders – no JavaScript, no
+`<audio>`/`<video>` (play sound from `on_link`, e.g. with the system's player). A renderer or format that raises is
+logged and skipped: the chat shows the message's text instead. Blocks are stored with the run (`data` must be JSON)
+and drawn again whenever the chat is opened – a renderer may change its look later (e.g. read the plugin's storage).
+
+```python
+ctx.chat.add_format(r"(?<![\w&])#([0-9a-fA-F]{6})\b",
+                    lambda m: f'<span style="color:#{m.group(1)}">■</span> #{m.group(1)}')
+ctx.chat.add_renderer("chart", lambda data: f'<img src="{html.escape(data["png"])}" width="420">')
+ctx.chat.add_renderer("doc", lambda data: ctx.chat.link("open", "📄 " + data["title"], path=data["path"]))
+ctx.chat.on_link("open", lambda params: ctx.ui.open_url(Path(params["path"]).as_uri()))
+```
 
 ---
 
