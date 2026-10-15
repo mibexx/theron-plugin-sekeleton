@@ -56,6 +56,7 @@ defaults.
 | `ctx.settings.update({key: value, …})` | `None` | store several values; emits `settings.changed` to this plugin |
 | `ctx.settings.missing()` | `list[str]` | labels of `required` settings that are still empty |
 | `ctx.settings.on_change(fn)` | `fn` | shorthand for `ctx.events.on("settings.changed", fn)`; usable as a decorator |
+| `ctx.settings.on_edit(run, keys=None)` | `None` | react while the user edits the settings dialog (before saving): `run(values, key)` gets what the dialog shows and the setting just changed; it runs in the background (it may ask: `await ctx.ui.run(ctx.ui.ask_files, …)`) and returns `None`, a text, `(ok, text)` or `{"values": {key: value}, "ok": bool, "text": str}` – `values` go into the dialog's fields. `keys`: only these settings *(0.20)* |
 | `ctx.settings.add_button(label, run, *, id="", tooltip="")` | `None` | a button in the plugin's settings dialog, e.g. “Test”: `run(values)` gets what the dialog shows right now (saved or not), runs in the background and returns a text, `(ok, text)` (✔ green / ✖ red, shown below the buttons) or `None` *(0.17)* |
 
 A plugin may store values that aren't declared in the manifest (e.g. an OAuth refresh token); they just don't appear
@@ -160,6 +161,8 @@ Desktop only – check `ctx.ui.available` first. Full guide: [Pages & settings U
 | `ctx.ui.add_action(page, label, run, *, id="", icon="", tooltip="", style="ghost", place="top")` | a button on a page – `place`: `top`, `chat`, `new`, `lists`, `items`, `sidebar`; `label` text or `label(context)` → text / None (hidden); `run(context)` on the UI thread – [manual](manual.md#4-extend-buttons-and-forms) *(0.16)* |
 | `ctx.ui.refresh_actions()` | ask the `label` functions again *(0.16)* |
 | `ctx.ui.add_form_button(form, label, run, *, id="", icon="", tooltip="", style="ghost")` | a button in the form of `agent`, `process` or `project`; `run(form)` *(0.16)* |
+| `ctx.ui.ask_files(title, filter="", *, multiple=True, start="")` / `ask_folder(title, start="")` | file / folder pickers – UI thread only; `[]` / None when cancelled *(0.20)* |
+| `await ctx.ui.run(fn, *args)` | from the plugins' loop (a node, a field button, `on_edit` …): run `fn` on the UI thread and get its result, e.g. `await ctx.ui.run(ctx.ui.ask_files, "Add templates")` *(0.20)* |
 | `ctx.ui.ask_text(title, text, default="", suggestions=None)` / `ask_choice(title, text, options)` / `message(title, text, level="info")` | small modal dialogs in Theron's look – UI thread only; None when cancelled *(0.16)*. `suggestions`: a list to pick from, typing something else stays possible *(0.19.1 – older versions raise TypeError, so fall back)* |
 | `ctx.ui.chat_input(page="cockpit")` / `set_chat_input(text, page="cockpit", append=False)` | read / fill the chat input of the cockpit or the THERON page *(0.16)* |
 

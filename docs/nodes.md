@@ -213,3 +213,17 @@ With named ports, the step keeps the ports it was drawn with and where they lead
 ```
 
 `plugin_input_map` maps a source step id to the input its edge ends at (`{"s8b21e07": "docs"}`).
+
+### Choices that follow the other fields (0.20)
+
+A `choice` whose `options` is a function of the settings is asked again whenever another field of the node changes
+and when a field button is done – e.g. the files of a folder named in another field:
+
+```python
+{"key": "template_dir", "type": "text", "label": "Template folder",
+ "buttons": [{"label": "＋", "run": add_templates}]},       # add_templates may await ctx.ui.run(ctx.ui.ask_files, …)
+{"key": "template", "type": "choice", "label": "Template",
+ "options": lambda cfg: [{"value": f.name, "label": f.name} for f in Path(cfg["template_dir"]).glob("*.html")]},
+```
+
+The selection stays, even if the new list doesn't have it.

@@ -230,6 +230,22 @@ class _Settings:
         self._ctx.events.on("settings.changed", fn)
         return fn
 
+    def on_edit(self, run, keys=None):
+        self.edits = getattr(self, "edits", []) + [{"run": run, "keys": tuple(keys or ())}]
+
+    async def edit(self, key, values=None):
+        """Change a setting in the dialog like the user does → what the plugin's ``on_edit`` returns (the last one
+        that answers): None, a text, (ok, text) or {"values", "ok", "text"}."""
+        import inspect
+        vals = {**self.all(), **(values or {})}
+        out = None
+        for e in getattr(self, "edits", []):
+            if not e["keys"] or key in e["keys"]:
+                r = e["run"](vals, key)
+                r = await r if inspect.isawaitable(r) else r
+                out = r if r is not None else out
+        return out
+
     def add_button(self, label, run, *, id="", tooltip=""):
         self.buttons = [b for b in getattr(self, "buttons", []) if b["id"] != (id or label)]
         self.buttons.append({"id": id or label, "label": label, "run": run, "tooltip": tooltip})
@@ -392,6 +408,19 @@ class _Ui:
 
     def message(self, title, text, level="info"):
         self.dialogs.append(("message", title, text, level))
+
+    def ask_files(self, title, filter="", *, multiple=True, start=""):
+        self.dialogs.append(("files", title, filter))
+        answer = self.answers.pop(0) if self.answers else []
+        return [answer] if isinstance(answer, str) else list(answer or [])
+
+    def ask_folder(self, title, start=""):
+        self.dialogs.append(("folder", title))
+        return self.answers.pop(0) if self.answers else None
+
+    async def run(self, fn, *args):
+        """Like Theron: ``fn(*args)`` on the UI thread, its result back to the awaiting coroutine."""
+        return fn(*args)
 
     def chat_input(self, page="cockpit"):
         return self.chat.get(page, "")
@@ -890,7 +919,7 @@ class FakeContext:
         self.dir = Path(root) if root else Path.cwd()
         self.host = "desktop"
         self.language = language
-        self.theron_version = "0.19.1"
+        self.theron_version = "0.20.0"
         self.api_version = 1
         self.source = f"plugin:{plugin_id}"
         self.settings = _Settings(self, dict(settings or {}))

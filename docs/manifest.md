@@ -71,7 +71,7 @@ Each `[[settings]]` table declares one setting. They appear, in this order, in t
 | `description` | | Hint below the field. Translated. |
 | `default` | | Value before the user changes it. |
 | `required` | | `true` marks it with `*`; Settings → Plugins lists missing required settings. Theron doesn't block anything – check `ctx.settings.missing()` or the value yourself. |
-| `options` | for `choice` | The values to choose from (shown as they are). |
+| `options` | for `choice` | The values to choose from – plain values (shown as they are) or tables `{value = "docker", label = "Load via Docker"}` (the label is shown and translated; 0.20). |
 
 | Type | Input | Value in `ctx.settings` | Empty value |
 |---|---|---|---|
