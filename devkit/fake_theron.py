@@ -857,11 +857,20 @@ class _Runs:
 
 
 @dataclass
+class ToolCall:
+    name: str
+    input: dict = field(default_factory=dict)
+    output: str = ""
+    is_error: bool = False
+
+
+@dataclass
 class AgentResult:
     text: str = ""
     session_id: str = "fake-session"
     cost_usd: float = 0.0
     is_error: bool = False
+    tool_calls: list = field(default_factory=list)
 
 
 class _Session:
@@ -881,7 +890,8 @@ class _Session:
 class _Ai:
     def __init__(self):
         self.answer: Callable[[str, str, str], str] = lambda prompt, system, model: "YES – fake answer"
-        self.agent_answer: Callable[[str, dict], str] = lambda prompt, options: "agent done"
+        # the agent's answer: a text – or a whole AgentResult (e.g. with tool_calls for a Claude in Chrome run)
+        self.agent_answer: Callable[[str, dict], Any] = lambda prompt, options: "agent done"
         self.prompts: list[str] = []
         self.agents: list[dict] = []
 
@@ -893,10 +903,12 @@ class _Ai:
         return _Session(self, system, model)
 
     async def agent(self, prompt, *, cwd=None, system="", model="", tools=None, max_turns=30, session_id="",
-                    on_text=None):
-        options = {"cwd": cwd, "system": system, "model": model, "tools": tools, "session_id": session_id}
+                    on_text=None, chrome=False):
+        options = {"cwd": cwd, "system": system, "model": model, "tools": tools, "session_id": session_id,
+                   "chrome": chrome}
         self.agents.append({"prompt": prompt, **options})
-        return AgentResult(text=self.agent_answer(prompt, options))
+        answer = self.agent_answer(prompt, options)
+        return answer if isinstance(answer, AgentResult) else AgentResult(text=answer)
 
 
 class _Log:

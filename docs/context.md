@@ -393,7 +393,7 @@ risks = await chat.send("And what could go wrong?")       # knows the first answ
 | `session.history` | `[(role, text)]` – `"user"` / `"assistant"` |
 | `session.reset()` | forget the conversation |
 
-### `await ctx.ai.agent(prompt, *, cwd=None, system="", model="", tools=None, max_turns=30, session_id="", on_text=None) -> AgentResult`
+### `await ctx.ai.agent(prompt, *, cwd=None, system="", model="", tools=None, max_turns=30, session_id="", on_text=None, chrome=False) -> AgentResult`
 
 Runs a **Claude Code agent of the plugin's own** – with tools, in a folder, on the user's Claude subscription. For work
 that needs more than an answer: read files, search the web, write a report.
@@ -408,9 +408,15 @@ that needs more than an answer: read files, search the web, write a report.
 | `max_turns` | limit of model turns |
 | `session_id` | continue an earlier agent conversation (`AgentResult.session_id`) |
 | `on_text(text)` | callback with what the agent writes while it works |
+| `chrome` | *Theron 0.25+*: with **Claude in Chrome** (`claude --chrome`) – the agent works in the user's own Chrome through the Claude extension (tools `mcp__claude-in-chrome__*`, e.g. `navigate`, `get_page_text`, `javascript_tool`). Desktop only; with several connected Chrome browsers the extension wants the user to pick one – ask with `node.ask`, never pick yourself. |
 
-`AgentResult`: `text` (its final answer), `session_id`, `cost_usd`, `is_error`. The user's CLAUDE.md and settings are
-not loaded. The cost counts towards Theron's usage display.
+`AgentResult`: `text` (its final answer), `session_id`, `cost_usd`, `is_error`, `tool_calls` (*0.25+*: every tool it
+used, in order – `ToolCall(name, input, output, is_error)`, `output` verbatim as the tool returned it, e.g. a page's
+text from `get_page_text` without the model retelling it). The user's CLAUDE.md and settings are not loaded. The cost
+counts towards Theron's usage display.
+
+Check for the newer parameters on older Theron versions:
+`"chrome" in inspect.signature(ctx.ai.agent).parameters`.
 
 ---
 
