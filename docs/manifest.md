@@ -36,6 +36,7 @@ required = true
 | `min_theron` | | text | The oldest Theron version it runs on, e.g. `"0.14.0"`. |
 | `entry` | | text | Name of the Python package (folder with `__init__.py`) that contains `register(ctx)`. Default: the id with `-` replaced by `_`. Must be a valid Python identifier. |
 | `permissions` | | list | What the plugin uses – see below. |
+| `[dependencies]` | | table | Other plugins it needs – see [Dependencies](#dependencies). *(0.23)* |
 | `[[settings]]` | | tables | The plugin's settings – see below. |
 
 Unknown fields are ignored.
@@ -57,6 +58,38 @@ see [Security](security.md). Unknown names are an error.
 | `ui` | adds pages or windows (`ctx.ui`) |
 | `files` | reads or writes files outside `ctx.data_dir` |
 | `ai` | asks the AI model (`ctx.ai`) – this uses the user's Claude subscription |
+
+## Dependencies
+
+A plugin that builds on another one lists it – plugin id = version spec:
+
+```toml
+[dependencies]
+google-serp = ">=1.0.0"     # at least 1.0.0
+chrome = ">=1.0, <2"        # any 1.x
+helper = "*"                # any version ("" works, too)
+```
+
+Specs: `>=`, `>`, `<=`, `<`, `==` (or `=`), `!=`, several joined with `,`; a bare version (`"1.2"`) means `>=1.2`.
+
+| When | What Theron does |
+|---|---|
+| **installing** | a missing (or too old) dependency is installed with it from the plugin server – the newest official version that fits the spec and the user's Theron, with its own dependencies. In the app (“Official plugins …”, “Upload plugin …”) and the console (`theron plugin install`, `--no-deps` turns it off). A dependency that is no official plugin stops the installation: the user installs it first. |
+| **loading** | dependencies are loaded first. If one is missing, switched off, too old or fails to load, the plugin isn't loaded – the plugin list says why (*“needs the plugin … – not installed”*). A cycle is an error. |
+| **switching on** | its dependencies are switched on, too. |
+| **removing / switching off** | Theron asks first when other plugins need it (console: `--force`). |
+| **showing** | the plugin list (needs ✔ / what is missing, needed by), “Official plugins …”, the install dialog, `theron plugin info` and the website's plugin catalog. |
+
+In code, `ctx.dependency("google-serp")` returns the dependency's Python package (its `entry` module), loaded and
+registered before yours – call its functions directly:
+
+```python
+def register(ctx):
+    serp = ctx.dependency("google-serp")      # PluginError if it isn't in [dependencies] or didn't load
+    client = serp.api.Client(ctx.http, key)
+```
+
+Older Theron versions ignore `[dependencies]` – set `min_theron = "0.23.0"` when your plugin can't work without them.
 
 ## Settings
 

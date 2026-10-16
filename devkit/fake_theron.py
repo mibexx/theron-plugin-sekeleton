@@ -944,6 +944,8 @@ class FakeContext:
         self.stopped: list[Callable] = []
         self._catalog: dict[str, str] = {}
         self.data_dir = Path(tempfile.mkdtemp(prefix=f"{plugin_id}-"))
+        self.dependencies: dict[str, str] = {}   # [dependencies] of plugin.toml
+        self.dependency_modules: dict = {}       # tests put stand-ins here: ctx.dependency_modules["x"] = module
 
     @classmethod
     def from_plugin(cls, root: Path, language: str = "en") -> "FakeContext":
@@ -952,10 +954,20 @@ class FakeContext:
         data = tomllib.loads((root / "plugin.toml").read_text(encoding="utf-8"))
         ctx = cls(data["id"], {s["key"]: s.get("default") for s in data.get("settings", [])}, root, language)
         ctx.name, ctx.version = data.get("name", data["id"]), data["version"]
+        ctx.dependencies = {str(k): str(v) for k, v in (data.get("dependencies") or {}).items()}
         path = root / "i18n" / f"{language}.json"
         if language != "en" and path.is_file():
             ctx._catalog = json.loads(path.read_text(encoding="utf-8"))
         return ctx
+
+    def dependency(self, plugin_id: str):
+        """Like Theron: the package of a plugin from [dependencies] – here what the test put into
+        ``dependency_modules`` (a module, a SimpleNamespace …)."""
+        if plugin_id not in self.dependencies:
+            raise PluginError(f"'{plugin_id}' is not in [dependencies] of {self.id}'s plugin.toml")
+        if plugin_id not in self.dependency_modules:
+            raise PluginError(f"the plugin '{plugin_id}' is not loaded (test: ctx.dependency_modules[{plugin_id!r}] = …)")
+        return self.dependency_modules[plugin_id]
 
     def tr(self, text, **kwargs):
         text = self._catalog.get(text, text)

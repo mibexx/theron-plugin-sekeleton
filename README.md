@@ -222,6 +222,22 @@ if ctx.ui.available:                                    # desktop app only – n
     ctx.ui.add_page("Board", BoardPage, icon="▦")
 ```
 
+### Other plugins it needs
+
+A plugin that builds on another one lists it in `plugin.toml` – Theron installs it along (from the official plugin
+server), loads it first and shows the dependency in the plugin list and the catalog *(0.23)*:
+
+```toml
+[dependencies]
+google-serp = ">=1.0.0"
+```
+
+```python
+serp = ctx.dependency("google-serp")     # the dependency's package – use its functions directly
+```
+
+Details: [docs/manifest.md → Dependencies](docs/manifest.md#dependencies).
+
 ### Settings
 
 Declare them in `plugin.toml` – Theron builds the dialog, stores the values and passes them to the plugin:
@@ -458,6 +474,8 @@ it as **invalid** (changed after signing). A plugin that fails while loading is 
 
 - **Log:** Settings → Plugins → Log, or `plugin-data/<id>/plugin.log` in Theron's data folder. On a slave the lines go
   to the console, too.
+- **“needs the plugin … – not installed”** – a plugin from `[dependencies]` is missing, too old or switched off:
+  install / update it (Settings → Plugins → *Official plugins …*) or switch it on.
 - **“doesn't fit this Theron version”** – `theron_api` / `min_theron` in `plugin.toml` don't match: update Theron.
 - **Theron won't start because of a plugin** – start it with `--no-plugins` (or `THERON_NO_PLUGINS=1`) and switch the
   plugin off. A plugin that crashed Theron while loading is switched off automatically at the next start.

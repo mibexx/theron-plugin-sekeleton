@@ -39,6 +39,9 @@ attribute and method of plugin API v1.
 | `ctx.api_version` | `int` | `1` |
 | `ctx.source` | `str` | `"plugin:<id>"` – how the plugin's own changes are marked in [events](events.md) |
 
+`ctx.dependency(plugin_id)` returns the package of a plugin listed in your [`[dependencies]`](manifest.md#dependencies)
+– loaded before yours, so its functions and classes are ready to use. *(0.23)*
+
 ---
 
 ## `ctx.settings`
