@@ -129,6 +129,7 @@ What `run(node)` receives:
 | `node.handovers` | `list[dict]` | the hand-overs one by one: `{"from": step name, "text": text, "verdict": "success" \| "failure" \| ""}` |
 | `node.task` | `str` | what the orchestrator asked **this step** to do – often where the user's wishes for the step end up (“speak this sentence”). It is **not** part of `node.input`: a node that works on “the material” should look at both (see the tip below) |
 | `node.instructions` | `str` | the step's instructions from the editor |
+| `node.settings` | `dict[str, str]` | the **⚙ Settings** nodes connected to this step, merged: `{"Audience": "CTOs", …}` – values the user keeps in a form in the process editor. They are also in `node.input` as text, but never in `node.handovers` *(0.23)* |
 | `node.project` | `dict` | `{"id", "name", "workspace"}` – `workspace` is the folder the agents work in |
 | `node.run_id` | `int` | the run (task) |
 | `node.step_name` | `str` | the step's name in this process |

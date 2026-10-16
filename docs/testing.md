@@ -46,6 +46,7 @@ def make():
 | `ctx.settings.add_button` *(0.17)* | recorded | `await ctx.settings.press("Test", values={...})` → what the button returns |
 | node fields *(0.17)* | | `ctx.field_options(kind, key, config)` (a function is asked), `ctx.field_visible(kind, key, config)` (`show_if`), `await ctx.press_field_button(kind, key, button, config)` → (label before, result, label after) *(0.18)* |
 | `ctx.log`, `ctx.notify` | recorded | `ctx.log.lines`, `ctx.notifications` |
+| `node.settings` *(0.23)* | what you pass | `await ctx.run_node(kind, settings={"Audience": "CTOs"})` |
 | `ctx.dependency(id)` *(0.23)* | the `[dependencies]` of `plugin.toml` are checked | put a stand-in first: `ctx.dependency_modules["google-serp"] = SimpleNamespace(search=…)` |
 
 ## Examples

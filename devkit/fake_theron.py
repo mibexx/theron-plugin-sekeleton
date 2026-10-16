@@ -83,8 +83,9 @@ def node_ports(spec: dict, config: dict) -> dict:
 
 class FakeNodeRun:
     def __init__(self, ctx, config, handovers, task="", instructions="", project=None, tasklist_id=None,
-                 inputs=None, outputs=None):
+                 inputs=None, outputs=None, settings=None):
         self.ctx = ctx
+        self.settings = dict(settings or {})   # ⚙ Settings nodes at the step: run_node(..., settings={...})
         self.config = config
         if inputs:   # named inputs: {"code": [hand-overs], "docs": [...]} – handovers are all of them together
             handovers = [dict(h, input=k) for k, hs in inputs.items() for h in hs]
@@ -93,7 +94,8 @@ class FakeNodeRun:
         self.inputs = {k: [{"from": h.get("from", "Agent"), "text": h.get("text", ""),
                             "verdict": h.get("verdict", "success")} for h in hs] for k, hs in (inputs or {}).items()}
         self.outputs = outputs or []
-        self.input = "\n\n".join(f"## {h['from']}\n{h['text']}" for h in self.handovers)
+        self.input = "\n\n".join(f"## {h['from']}\n{h['text']}" for h in self.handovers) + (
+            "\n\n## ⚙ Settings\n" + "\n".join(f"{k}: {v}" for k, v in self.settings.items()) if self.settings else "")
         self.task = task
         self.instructions = instructions
         self.project = project or {"id": 1, "name": "Project", "workspace": tempfile.gettempdir()}
