@@ -146,7 +146,7 @@ class RunInfo(QWidget):
         self.label.setText(run["title"] if run else self.ctx.tr("No task open."))
 ```
 
-- **Pages:** `cockpit`, `theron`, `projects`, `processes`, `agents`, `tasks`, `databases`, a plugin's page
+- **Pages:** `cockpit`, `theron`, `projects`, `processes`, `agents`, `tasks`, `databases`, `jobs` *(0.23)*, a plugin's page
   (`"my-plugin/board"`), a list of them or `"*"` for every page.
 - **`area`:** `"right"` (a column next to the page) or `"bottom"` (a row below it). Several panels stack, sorted by
   `order`; the user drags the splitters and folds panels (▾/▸) – Theron remembers both.
@@ -160,6 +160,7 @@ class RunInfo(QWidget):
 | `agents` | `{"page", "agent_id"}` |
 | `tasks` | `{"page", "project_id", "tasklist_id"}` |
 | `databases` | `{"page", "database"}` |
+| `jobs` | `{"page", "job_id"}` *(0.23)* |
 | a plugin page | `{"page"}` |
 
 - `view.on_context(fn)` – `fn(context)` whenever that changes. `view.set_title(text)`, `view.set_visible(bool)`.

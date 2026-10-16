@@ -44,7 +44,7 @@ new release.
 | Extension | What it is | In this skeleton |
 |---|---|---|
 | **Navigation entry with UI** | A page of its own in Theron's sidebar (a PySide6 widget). | [`my_plugin/pages.py`](my_plugin/pages.py) |
-| **Windows on Theron's pages** | Panels next to or below any page (cockpit, THERON, projects, processes, agents, tasks, databases) that follow what the page shows, and windows of their own. | [`my_plugin/ui_monitor.py`](my_plugin/ui_monitor.py), [`my_plugin/pages.py`](my_plugin/pages.py) |
+| **Windows on Theron's pages** | Panels next to or below any page (cockpit, THERON, projects, processes, agents, tasks, databases, jobs) that follow what the page shows, and windows of their own. | [`my_plugin/ui_monitor.py`](my_plugin/ui_monitor.py), [`my_plugin/pages.py`](my_plugin/pages.py) |
 | **Buttons & forms** | Buttons in a page's tool bar, next to “Send” in the chat, next to “+ New …”, on the task-list page, in the sidebar; extra fields and buttons in the agent, process and project forms; small dialogs. | [`my_plugin/extend.py`](my_plugin/extend.py) |
 | **The chat** | Own formatting for any chat message, own blocks (players, documents, diagrams …) with clickable buttons, nodes that ask the user in the chat, buttons in the settings dialog (“Test”), node fields with live options and `show_if`. | [`my_plugin/chat.py`](my_plugin/chat.py) |
 | **Running agents & logs** | Read the tasks, the agents working right now and their logs – live; ask a working agent on the side; answer, stop, restart. | [`my_plugin/monitor.py`](my_plugin/monitor.py) |
