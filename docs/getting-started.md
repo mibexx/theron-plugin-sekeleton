@@ -2,7 +2,7 @@
 
 ## 1. Requirements
 
-- **Theron 0.14.0** or newer ([download](https://theron.mibexx.de/#download)) – for running the plugin.
+- **Theron 0.14.0** or newer ([download](https://www.theron-ai.de/#download)) – for running the plugin.
 - **Python 3.11+** – only for developing: running the tests and the pack script. Inside Theron the plugin runs on
   Theron's own Python (3.12 or newer); nothing has to be installed.
 

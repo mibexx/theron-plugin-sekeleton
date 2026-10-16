@@ -1,7 +1,7 @@
 """My Plugin – a Theron plugin.
 
 Theron calls ``register(ctx)`` once at start. Everything the plugin brings is registered here through ``ctx`` –
-the plugin API (https://theron.mibexx.de/docs-plugins.html#en-pl-api). Delete what you don't need: every part
+the plugin API (https://www.theron-ai.de/docs-plugins.html#en-pl-api). Delete what you don't need: every part
 below is independent of the others.
 """
 

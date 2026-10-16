@@ -1,6 +1,6 @@
 # Theron Plugin Skeleton
 
-A starting point for your own [Theron](https://theron.mibexx.de) plugin – with working examples for everything a plugin
+A starting point for your own [Theron](https://www.theron-ai.de) plugin – with working examples for everything a plugin
 can add to Theron: a page in the navigation, settings, process nodes, a tool for agents, event handlers and a two-way
 **task-list ↔ Trello** sync you can adapt to Jira, GitHub Issues, Linear or any other service.
 
@@ -8,8 +8,8 @@ can add to Theron: a page in the navigation, settings, process nodes, a tool for
 new release.
 
 📚 Complete API reference: **[docs/](docs/README.md)** ·
-📖 User guide: **[theron.mibexx.de/docs-plugins.html](https://theron.mibexx.de/docs-plugins.html)** ·
-⬇ Download Theron: **[theron.mibexx.de](https://theron.mibexx.de/#download)**
+📖 User guide: **[www.theron-ai.de/docs-plugins.html](https://www.theron-ai.de/docs-plugins.html)** ·
+⬇ Download Theron: **[www.theron-ai.de](https://www.theron-ai.de/#download)**
 
 ---
 

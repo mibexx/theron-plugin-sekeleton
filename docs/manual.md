@@ -547,7 +547,7 @@ The function runs on the UI thread – return what you have cached and refresh t
 **Testing.** The devkit renders and clicks like the chat: `ctx.chat.render(kind, data)`, `ctx.chat.format(text)`,
 `await ctx.chat.click(href)`, answers for `node.ask` from `ctx.chat.answers` – see [testing.md](testing.md).
 
-A complete plugin built on all of this: **ElevenLabs** in the [plugin catalog](https://theron.mibexx.de/plugins.html)
+A complete plugin built on all of this: **ElevenLabs** in the [plugin catalog](https://www.theron-ai.de/plugins.html)
 – voices listed with ▶ samples in the chat, a voice picked by number or in your own words, the generated audio files
 playable right there.
 

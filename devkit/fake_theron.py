@@ -6,7 +6,7 @@
     await ctx.emit("requirement.saved", {"id": 3, …})
 
 Only the behaviour plugins rely on is modelled; the real API is documented at
-https://theron.mibexx.de/docs-plugins.html#en-pl-api
+https://www.theron-ai.de/docs-plugins.html#en-pl-api
 """
 
 from __future__ import annotations

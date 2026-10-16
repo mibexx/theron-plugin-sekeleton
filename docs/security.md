@@ -41,5 +41,5 @@ That's why installing a plugin is a decision of trust, and Theron supports it:
 
 ## Reporting a vulnerability in Theron
 
-Please contact mibexx via the imprint on [theron.mibexx.de](https://theron.mibexx.de/imprint.html) instead of opening a
+Please contact mibexx via the imprint on [www.theron-ai.de](https://www.theron-ai.de/imprint.html) instead of opening a
 public issue.

@@ -21,7 +21,7 @@ The complete reference of Theron's plugin interface – **plugin API v1** (`ther
 | [Testing with the devkit](testing.md) | Testing a plugin without Theron |
 | [Troubleshooting](troubleshooting.md) | Logs, safe mode, common errors |
 
-The user-facing documentation lives on the website: [theron.mibexx.de/docs-plugins.html](https://theron.mibexx.de/docs-plugins.html).
+The user-facing documentation lives on the website: [www.theron-ai.de/docs-plugins.html](https://www.theron-ai.de/docs-plugins.html).
 
 ## Stability promise
 

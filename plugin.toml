@@ -1,5 +1,5 @@
 # The plugin's manifest – Theron reads it before anything else.
-# Reference: https://theron.mibexx.de/docs-plugins.html#en-pl-manifest
+# Reference: https://www.theron-ai.de/docs-plugins.html#en-pl-manifest
 
 id = "my-plugin"                 # lower case, digits and "-" – unique; rename it for your plugin
 name = "My Plugin"
